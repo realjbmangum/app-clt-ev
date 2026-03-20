@@ -16,9 +16,10 @@ const app = new Hono<{ Bindings: Env }>();
 
 // CORS for dashboard frontend
 app.use('/api/*', cors({
-  origin: (origin) => origin, // Allow all origins during prototype phase
-  allowMethods: ['GET', 'POST', 'PUT', 'DELETE'],
+  origin: '*',
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization'],
+  credentials: false,
 }));
 
 // Health check
