@@ -1,8 +1,16 @@
 import { useState, useMemo } from 'react'
 import { X, MapPin, Clock, Zap, ChevronRight, Search, Download, ChevronUp, ChevronDown } from 'lucide-react'
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import StatusBadge from '../components/StatusBadge'
-import { useStations, useSessions, type StationFilters } from '../lib/hooks'
+import { useStations, useSessions, useStats, type StationFilters } from '../lib/hooks'
 import type { Station } from '../lib/mock-data'
+
+const STATUS_COLORS: Record<string, string> = {
+  AVAILABLE: '#71BF44',
+  OCCUPIED: '#2F70B8',
+  UNREACHABLE: '#EA983E',
+  FAULTED: '#DE0505',
+}
 
 const ORG_OPTIONS = [
   { label: 'City of Charlotte', value: 'City of Charlotte' },
@@ -27,6 +35,8 @@ export default function StationList() {
   const [page, setPage] = useState(0)
   const [selectedStation, setSelectedStation] = useState<Station | null>(null)
   const pageSize = 25
+
+  const { stats } = useStats()
 
   const filters: StationFilters = useMemo(() => ({
     org: orgFilter || undefined,
@@ -90,6 +100,77 @@ export default function StationList() {
         <h1 className="text-xl font-semibold text-charlotte-black">Stations</h1>
         <span className="text-sm text-gray-400">{stations.length} stations</span>
       </div>
+
+      {/* KPI Cards + Pie Chart */}
+      {stats && (
+        <div className="flex gap-4">
+          <div className="flex-1 grid grid-cols-5 gap-3">
+            {[
+              { label: 'Total Stations', value: stats.total, color: '#6B7280', status: '' },
+              { label: 'Available', value: stats.available, color: STATUS_COLORS.AVAILABLE, status: 'AVAILABLE' },
+              { label: 'Occupied', value: stats.occupied, color: STATUS_COLORS.OCCUPIED, status: 'OCCUPIED' },
+              { label: 'Unreachable', value: stats.unreachable, color: STATUS_COLORS.UNREACHABLE, status: 'UNREACHABLE' },
+              { label: 'Faulted', value: stats.faulted, color: STATUS_COLORS.FAULTED, status: 'FAULTED' },
+            ].map(kpi => (
+              <button
+                key={kpi.label}
+                onClick={() => {
+                  if (!kpi.status) { setStatusFilter(''); setPage(0); return }
+                  setStatusFilter(prev => prev === kpi.status ? '' : kpi.status)
+                  setPage(0)
+                }}
+                className={`bg-white rounded-xl border p-4 text-left transition-all hover:shadow-sm ${
+                  statusFilter === kpi.status && kpi.status
+                    ? 'border-l-4'
+                    : 'border-gray-200'
+                }`}
+                style={statusFilter === kpi.status && kpi.status ? { borderLeftColor: kpi.color } : undefined}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: kpi.color }} />
+                  <span className="text-xs text-gray-500">{kpi.label}</span>
+                </div>
+                <span className="text-2xl font-semibold text-charlotte-black">{kpi.value}</span>
+              </button>
+            ))}
+          </div>
+          <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-center" style={{ width: 160 }}>
+            <div className="relative">
+              <ResponsiveContainer width={120} height={120}>
+                <PieChart>
+                  <Pie
+                    data={[
+                      { name: 'Available', value: stats.available, status: 'AVAILABLE' },
+                      { name: 'Occupied', value: stats.occupied, status: 'OCCUPIED' },
+                      { name: 'Unreachable', value: stats.unreachable, status: 'UNREACHABLE' },
+                      { name: 'Faulted', value: stats.faulted, status: 'FAULTED' },
+                    ]}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={35}
+                    outerRadius={55}
+                    paddingAngle={2}
+                    dataKey="value"
+                    onClick={(entry) => {
+                      const status = entry.status as string
+                      setStatusFilter(prev => prev === status ? '' : status)
+                      setPage(0)
+                    }}
+                    cursor="pointer"
+                  >
+                    {['AVAILABLE', 'OCCUPIED', 'UNREACHABLE', 'FAULTED'].map(s => (
+                      <Cell key={s} fill={STATUS_COLORS[s]} />
+                    ))}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <span className="text-lg font-semibold text-charlotte-black">{stats.total}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3 bg-white rounded-xl border border-gray-200 p-4">

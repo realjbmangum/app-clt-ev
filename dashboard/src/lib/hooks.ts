@@ -2,6 +2,20 @@ import { useState, useEffect, useCallback } from 'react'
 import { api } from './api'
 import { mockStations, mockSessions, mockStats } from './mock-data'
 import type { Station, Session, StatsResponse } from './mock-data'
+import { dailyEnergy, costBreakdown } from './mock-analytics'
+
+export type EnergyTimelineEntry = { date: string; kwh: number; cost: number }
+export type EnergyByOrg = { org_name: string; total_kwh: number; total_cost: number; session_count: number }
+export type EnergyStatsResponse = { timeline: EnergyTimelineEntry[]; by_org: EnergyByOrg[] }
+
+export type UtilizationTopStation = { evse_name: string; session_count: number }
+export type UtilizationHourly = { hour: number; day: number; count: number }
+export type UtilizationDaily = { date: string; count: number }
+export type UtilizationStatsResponse = {
+  top_stations: UtilizationTopStation[]
+  hourly: UtilizationHourly[]
+  daily_sessions: UtilizationDaily[]
+}
 
 export type StationFilters = {
   org?: string
@@ -136,4 +150,65 @@ export function useStats() {
   }, [])
 
   return { stats, loading, error }
+}
+
+export function useEnergyStats(dateRange?: string) {
+  const [data, setData] = useState<EnergyStatsResponse | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const params = dateRange ? `?range=${dateRange}` : ''
+    api.get<EnergyStatsResponse>(`/api/stats/energy${params}`)
+      .then(setData)
+      .catch(() => {
+        // Fallback to mock data reshaped to match API format
+        const timeline: EnergyTimelineEntry[] = dailyEnergy.map(d => ({
+          date: d.date,
+          kwh: d.kWh,
+          cost: d.cost,
+        }))
+        const byOrgMap = new Map<string, EnergyByOrg>()
+        for (const row of costBreakdown) {
+          const existing = byOrgMap.get(row.orgUnit)
+          if (existing) {
+            existing.total_kwh += row.totalKWh
+            existing.total_cost += row.totalCost
+            existing.session_count += row.sessions
+          } else {
+            byOrgMap.set(row.orgUnit, {
+              org_name: row.orgUnit,
+              total_kwh: row.totalKWh,
+              total_cost: row.totalCost,
+              session_count: row.sessions,
+            })
+          }
+        }
+        setData({ timeline, by_org: Array.from(byOrgMap.values()) })
+        setError(null)
+      })
+      .finally(() => setLoading(false))
+  }, [dateRange])
+
+  return { data, loading, error }
+}
+
+export function useUtilizationStats(dateRange?: string) {
+  const [data, setData] = useState<UtilizationStatsResponse | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const params = dateRange ? `?range=${dateRange}` : ''
+    api.get<UtilizationStatsResponse>(`/api/stats/utilization${params}`)
+      .then(setData)
+      .catch(() => {
+        // No mock fallback for utilization — leave null so pages show real zeros
+        setData(null)
+        setError(null)
+      })
+      .finally(() => setLoading(false))
+  }, [dateRange])
+
+  return { data, loading, error }
 }

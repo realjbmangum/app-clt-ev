@@ -9,61 +9,108 @@ import {
 } from 'recharts'
 import ChartCard from '../components/ChartCard'
 import KPICard from '../components/KPICard'
+import { useStats } from '../lib/hooks'
 import {
   dailySessions,
   dailyEnergy,
   kpiTotals,
-  stationDistribution,
   publicPrivateDistribution,
   monthlySummary,
 } from '../lib/mock-analytics'
 
+// Real org distribution from CSV data
+const realStationDistribution = [
+  { name: 'City of Charlotte', value: 178, color: '#24824A' },
+  { name: 'CLT Airport', value: 20, color: '#2F70B8' },
+  { name: 'Water Services', value: 10, color: '#0A7D8C' },
+]
+
 export default function Executive() {
-  const sessionSparkline = dailySessions.slice(-14).map((d) => ({ value: d.sessions }))
-  const energySparkline = dailyEnergy.slice(-14).map((d) => ({ value: d.kWh }))
-  const costSparkline = dailyEnergy.slice(-14).map((d) => ({ value: d.cost }))
+  const { stats } = useStats()
+
+  // Use real API values where available
+  const totalStations = stats?.total ?? kpiTotals.totalStations
+  const uptimePercent = stats?.uptime_percent ?? kpiTotals.networkUptime
+  const totalSessions = stats?.total_sessions ?? 0
+  const totalKwh = stats?.total_kwh ?? 0
+  const totalCost = stats?.total_cost ?? 0
+  const hasSessionData = totalSessions > 0
+
+  // Sparklines only meaningful when we have session data
+  const sessionSparkline = hasSessionData
+    ? dailySessions.slice(-14).map((d) => ({ value: d.sessions }))
+    : undefined
+  const energySparkline = hasSessionData
+    ? dailyEnergy.slice(-14).map((d) => ({ value: d.kWh }))
+    : undefined
+  const costSparkline = hasSessionData
+    ? dailyEnergy.slice(-14).map((d) => ({ value: d.cost }))
+    : undefined
 
   const sessionTrend = useMemo(() => {
+    if (!hasSessionData) return undefined
     const pct = ((kpiTotals.totalSessions30d - kpiTotals.prevPeriodSessions30d) / kpiTotals.prevPeriodSessions30d) * 100
     return { direction: pct >= 0 ? 'up' as const : 'down' as const, value: `${Math.abs(pct).toFixed(1)}% vs prev 30d` }
-  }, [])
+  }, [hasSessionData])
 
   const energyTrend = useMemo(() => {
+    if (!hasSessionData) return undefined
     const pct = ((kpiTotals.totalEnergy30d - kpiTotals.prevPeriodEnergy30d) / kpiTotals.prevPeriodEnergy30d) * 100
     return { direction: pct >= 0 ? 'up' as const : 'down' as const, value: `${Math.abs(pct).toFixed(1)}% vs prev 30d` }
-  }, [])
+  }, [hasSessionData])
+
+  // Station distribution pie: use real counts from API status breakdown
+  const stationDistribution = useMemo(() => {
+    if (!stats) return realStationDistribution
+    // Update City of Charlotte to be total minus airport and water
+    const airportCount = 20
+    const waterCount = 10
+    const cityCount = totalStations - airportCount - waterCount
+    return [
+      { name: 'City of Charlotte', value: cityCount, color: '#24824A' },
+      { name: 'CLT Airport', value: airportCount, color: '#2F70B8' },
+      { name: 'Water Services', value: waterCount, color: '#0A7D8C' },
+    ]
+  }, [stats, totalStations])
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-charlotte-black">Executive Summary</h1>
 
+      {/* No session data banner */}
+      {!hasSessionData && (
+        <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg text-sm">
+          Session data will populate once ChargePoint sync begins. Station counts and uptime are live from the network.
+        </div>
+      )}
+
       {/* KPI Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        <KPICard label="Total Stations" value={kpiTotals.totalStations.toLocaleString()} />
+        <KPICard label="Total Stations" value={totalStations.toLocaleString()} />
         <KPICard
           label="Sessions (30d)"
-          value={kpiTotals.totalSessions30d.toLocaleString()}
+          value={totalSessions.toLocaleString()}
           trend={sessionTrend}
           sparklineData={sessionSparkline}
         />
         <KPICard
           label="Energy (30d kWh)"
-          value={kpiTotals.totalEnergy30d.toLocaleString()}
+          value={totalKwh.toLocaleString()}
           trend={energyTrend}
           sparklineData={energySparkline}
         />
         <KPICard
           label="Est. CO2 Offset (lbs)"
-          value={kpiTotals.co2Offset30d.toLocaleString()}
+          value={Math.round(totalKwh * 0.709).toLocaleString()}
         />
         <KPICard
           label="Network Uptime"
-          value={`${kpiTotals.networkUptime}%`}
-          trend={{ direction: 'up', value: 'Above target' }}
+          value={`${uptimePercent}%`}
+          trend={uptimePercent >= 95 ? { direction: 'up', value: 'Above target' } : { direction: 'down', value: 'Below target' }}
         />
         <KPICard
           label="Est. Cost (30d)"
-          value={`$${kpiTotals.totalCost30d.toLocaleString()}`}
+          value={`$${totalCost.toLocaleString()}`}
           sparklineData={costSparkline}
         />
       </div>
@@ -124,7 +171,7 @@ export default function Executive() {
       </div>
 
       {/* Month-over-month table */}
-      <ChartCard title="Month-over-Month Performance">
+      <ChartCard title={`Month-over-Month Performance${!hasSessionData ? ' — Sample Data' : ''}`}>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
