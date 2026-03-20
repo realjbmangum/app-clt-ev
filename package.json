@@ -1,0 +1,11 @@
+{
+  "name": "app-clt-ev",
+  "private": true,
+  "scripts": {
+    "dev": "npm run dev:dashboard",
+    "dev:dashboard": "cd dashboard && npm run dev",
+    "dev:worker": "cd worker && npm run dev",
+    "build": "cd dashboard && npm run build",
+    "seed": "node data/seed.js"
+  }
+}

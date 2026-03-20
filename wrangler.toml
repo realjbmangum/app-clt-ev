@@ -1,0 +1,18 @@
+name = "clt-ev-worker"
+main = "worker/src/index.ts"
+compatibility_date = "2024-11-01"
+
+[vars]
+CHARGEPOINT_API_URL = "https://na.chargepoint.com/api"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "clt-ev-db"
+database_id = ""
+
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "clt-ev-archive"
+
+[triggers]
+crons = ["*/15 * * * *", "0 * * * *", "0 6 * * *"]
