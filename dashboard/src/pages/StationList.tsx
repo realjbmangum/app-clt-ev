@@ -294,12 +294,12 @@ export default function StationList() {
             <StatusBadge status={selectedStation.station_status} className="mb-4" />
 
             <div className="grid grid-cols-2 gap-3 text-sm mb-6">
-              <Info label="Org Unit" value={selectedStation.org_name} />
-              <Info label="Charger ID" value={selectedStation.charger_id} />
-              <Info label="Power Type" value={selectedStation.power_type} />
-              <Info label="Connector" value={selectedStation.connector_format} />
+              <Info label="Org Unit" value={selectedStation.org_name || '—'} />
+              <Info label="Charger ID" value={selectedStation.charger_id || '—'} />
+              <Info label="Power Type" value={selectedStation.power_type || '—'} />
+              <Info label="Connector" value={selectedStation.connector_format || '—'} />
               <Info label="Access" value={selectedStation.is_public ? 'Public' : 'Private'} />
-              <Info label="Warranty" value={selectedStation.warranty_type} />
+              <Info label="Warranty" value={selectedStation.warranty_type || '—'} />
             </div>
 
             <div className="flex items-center gap-2 text-sm text-gray-500 mb-6 pb-4 border-b border-gray-100">
