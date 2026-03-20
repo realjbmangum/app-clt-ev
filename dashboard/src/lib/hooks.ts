@@ -99,12 +99,12 @@ export function useSessions(stationId?: string, dateRange?: { start: string; end
     setLoading(true)
     setError(null)
 
-    const params = new URLSearchParams({ station_id: stationId, limit: '10' })
-    if (dateRange?.start) params.set('start', dateRange.start)
-    if (dateRange?.end) params.set('end', dateRange.end)
+    const params = new URLSearchParams({ station: stationId, limit: '10' })
+    if (dateRange?.start) params.set('start_date', dateRange.start)
+    if (dateRange?.end) params.set('end_date', dateRange.end)
 
-    api.get<Session[]>(`/api/sessions?${params}`)
-      .then(setSessions)
+    api.get<{ sessions: Session[] }>(`/api/sessions?${params}`)
+      .then(data => setSessions(Array.isArray(data) ? data : data.sessions || []))
       .catch(() => {
         // Fallback to mock sessions filtered by station
         const filtered = mockSessions.filter(s => s.station_charger_id === stationId)

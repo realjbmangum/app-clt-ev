@@ -109,34 +109,38 @@ export default function CostEnergy() {
             </button>
           ))}
         </div>
-        <div className="h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={energyData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip />
-              <Legend />
-              <Line type="monotone" dataKey="kWh" stroke="#24824A" strokeWidth={2} dot={false} name="kWh" />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+        {energyData.length > 0 && (
+          <div style={{ width: '100%', height: 288 }}>
+            <ResponsiveContainer>
+              <LineChart data={energyData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="kWh" stroke="#24824A" strokeWidth={2} dot={false} name="kWh" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </ChartCard>
 
       {/* Cost trend chart */}
       <ChartCard title="Cost Trend ($)">
-        <div className="h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={energyData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${v}`} />
-              <Tooltip formatter={(v: number) => `$${v.toFixed(2)}`} />
-              <Legend />
-              <Line type="monotone" dataKey="cost" stroke="#2F70B8" strokeWidth={2} dot={false} name="Est. Cost" />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+        {energyData.length > 0 && (
+          <div style={{ width: '100%', height: 288 }}>
+            <ResponsiveContainer>
+              <LineChart data={energyData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${v}`} />
+                <Tooltip formatter={(v: number) => `$${v.toFixed(2)}`} />
+                <Legend />
+                <Line type="monotone" dataKey="cost" stroke="#2F70B8" strokeWidth={2} dot={false} name="Est. Cost" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </ChartCard>
 
       {/* Breakdown table */}
