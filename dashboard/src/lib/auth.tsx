@@ -37,19 +37,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   async function login(email: string, password: string) {
-    const baseUrl = import.meta.env.VITE_API_URL || ''
-    const res = await fetch(`${baseUrl}/api/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    })
+    const baseUrl = (import.meta.env.VITE_API_URL || 'https://clt-ev-worker.bmangum1.workers.dev').replace(/\/$/, '')
+    const url = `${baseUrl}/api/auth/login`
+    console.log('[auth] login URL:', url)
+    let res: Response
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+    } catch (err) {
+      console.error('[auth] fetch error:', err)
+      throw new Error('Cannot reach server. Please try again.')
+    }
+    console.log('[auth] response status:', res.status)
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: 'Login failed' }))
       throw new Error(err.error || 'Login failed')
     }
-    const { token, user: userData } = await res.json()
-    localStorage.setItem('token', token)
-    setUser(userData)
+    const data = await res.json()
+    console.log('[auth] login success, user:', data.user)
+    localStorage.setItem('token', data.token)
+    setUser(data.user)
     navigate('/')
   }
 
