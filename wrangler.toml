@@ -8,7 +8,7 @@ CHARGEPOINT_API_URL = "https://na.chargepoint.com/api"
 [[d1_databases]]
 binding = "DB"
 database_name = "clt-ev-db"
-database_id = ""
+database_id = "0a6d6c8f-7705-4f34-a8ee-65d480cd790b"
 
 [[r2_buckets]]
 binding = "R2"
