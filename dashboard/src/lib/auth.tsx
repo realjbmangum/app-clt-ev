@@ -21,49 +21,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
 
   useEffect(() => {
-    const token = localStorage.getItem('token')
-    if (token) {
+    const stored = localStorage.getItem('clt-ev-user')
+    if (stored) {
       try {
-        const payload = JSON.parse(atob(token.split('.')[1]))
-        if (payload.exp && payload.exp * 1000 < Date.now()) {
-          localStorage.removeItem('token')
-          return
-        }
-        setUser({ id: payload.sub, email: payload.email, name: payload.email.split('@')[0], role: payload.role })
+        setUser(JSON.parse(stored))
       } catch {
-        localStorage.removeItem('token')
+        localStorage.removeItem('clt-ev-user')
       }
     }
   }, [])
 
   async function login(email: string, password: string) {
+    // Demo login — bypass API auth for prototype
+    const demoUsers: Record<string, User> = {
+      'demo': { id: 1, email: 'admin@cltev.gov', name: 'Admin', role: 'admin' },
+      'ops': { id: 2, email: 'ops@cltev.gov', name: 'Operations', role: 'operations' },
+      'finance': { id: 3, email: 'finance@cltev.gov', name: 'Finance', role: 'finance' },
+      'leadership': { id: 4, email: 'leadership@cltev.gov', name: 'Leadership', role: 'leadership' },
+    }
+
+    const demoUser = demoUsers[email.toLowerCase()] || demoUsers[email.split('@')[0].toLowerCase()]
+    if (demoUser && (password === 'demo' || password === 'cltev2026')) {
+      localStorage.setItem('clt-ev-user', JSON.stringify(demoUser))
+      setUser(demoUser)
+      navigate('/')
+      return
+    }
+
+    // Fall back to API auth
     const baseUrl = (import.meta.env.VITE_API_URL || 'https://clt-ev-worker.bmangum1.workers.dev').replace(/\/$/, '')
-    const url = `${baseUrl}/api/auth/login`
-    console.log('[auth] login URL:', url)
-    let res: Response
     try {
-      res = await fetch(url, {
+      const res = await fetch(`${baseUrl}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       })
-    } catch (err) {
-      console.error('[auth] fetch error:', err)
-      throw new Error('Cannot reach server. Please try again.')
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Invalid credentials' }))
+        throw new Error(err.error || 'Invalid credentials')
+      }
+      const data = await res.json()
+      localStorage.setItem('clt-ev-user', JSON.stringify(data.user))
+      setUser(data.user)
+      navigate('/')
+    } catch {
+      throw new Error('Invalid credentials')
     }
-    console.log('[auth] response status:', res.status)
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Login failed' }))
-      throw new Error(err.error || 'Login failed')
-    }
-    const data = await res.json()
-    console.log('[auth] login success, user:', data.user)
-    localStorage.setItem('token', data.token)
-    setUser(data.user)
-    navigate('/')
   }
 
   function logout() {
+    localStorage.removeItem('clt-ev-user')
     localStorage.removeItem('token')
     setUser(null)
     navigate('/login')
