@@ -56,6 +56,7 @@ export default function MapView() {
   const popupRef = useRef<mapboxgl.Popup | null>(null)
   const [mapLoaded, setMapLoaded] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [mapStyle, setMapStyle] = useState('light-v11')
   const [filters, setFilters] = useState<StationFilters>({
     org: 'All',
     status: [...STATUS_OPTIONS],
@@ -173,6 +174,32 @@ export default function MapView() {
       source.setData(buildGeoJSON(stations))
     }
   }, [stations, mapLoaded])
+
+  // Switch map style
+  function handleStyleChange(style: string) {
+    setMapStyle(style)
+    const map = mapRef.current
+    if (!map) return
+    map.setStyle(`mapbox://styles/mapbox/${style}`)
+    map.once('style.load', () => {
+      map.addSource(SOURCE_ID, {
+        type: 'geojson',
+        data: buildGeoJSON(stations),
+      })
+      map.addLayer({
+        id: LAYER_ID,
+        type: 'circle',
+        source: SOURCE_ID,
+        paint: {
+          'circle-radius': 7,
+          'circle-color': ['get', 'color'],
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': 2,
+          'circle-opacity': 0.9,
+        },
+      })
+    })
+  }
 
   // Resize map when sidebar toggles
   const handleSidebarToggle = useCallback(() => {
@@ -298,7 +325,30 @@ export default function MapView() {
         </div>
 
         {/* Map container */}
-        <div className="flex-1" ref={mapContainer} />
+        <div className="flex-1 relative">
+          <div ref={mapContainer} className="absolute inset-0" />
+
+          {/* Style switcher */}
+          <div className="absolute bottom-6 left-4 z-[1000] flex bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
+            {[
+              { id: 'light-v11', label: 'Light' },
+              { id: 'streets-v12', label: 'Streets' },
+              { id: 'satellite-streets-v12', label: 'Satellite' },
+            ].map(s => (
+              <button
+                key={s.id}
+                onClick={() => handleStyleChange(s.id)}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                  mapStyle === s.id
+                    ? 'bg-charlotte-green-dark text-white'
+                    : 'text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   )

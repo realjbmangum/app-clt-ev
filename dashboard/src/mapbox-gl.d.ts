@@ -12,6 +12,8 @@ declare module 'mapbox-gl' {
       getSource(id: string): any
       getCanvas(): HTMLCanvasElement
       on(type: string, layerOrCallback: any, callback?: any): this
+      once(type: string, callback: any): this
+      setStyle(style: string): this
       remove(): void
       resize(): void
       isStyleLoaded(): boolean
