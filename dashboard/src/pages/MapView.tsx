@@ -91,6 +91,9 @@ export default function MapView() {
     })
 
     map.addControl(new mapboxgl.NavigationControl(), 'top-right')
+    map.addControl(new mapboxgl.FullscreenControl(), 'top-right')
+    map.addControl(new mapboxgl.ScaleControl({ maxWidth: 150 }), 'bottom-right')
+    map.addControl(new mapboxgl.GeolocateControl({ positionOptions: { enableHighAccuracy: true }, trackUserLocation: false }), 'top-right')
 
     map.on('load', () => {
       map.addSource(SOURCE_ID, {

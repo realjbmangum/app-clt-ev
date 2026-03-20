@@ -21,6 +21,18 @@ declare module 'mapbox-gl' {
       constructor(options?: any)
     }
 
+    class FullscreenControl {
+      constructor(options?: any)
+    }
+
+    class ScaleControl {
+      constructor(options?: any)
+    }
+
+    class GeolocateControl {
+      constructor(options?: any)
+    }
+
     class Popup {
       constructor(options?: any)
       setLngLat(lnglat: [number, number]): this

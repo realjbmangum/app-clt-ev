@@ -11,8 +11,11 @@ export async function getAllStations(db: D1Database, filters?: {
   const params: string[] = [];
 
   if (filters?.status) {
-    query += ' AND station_status = ?';
-    params.push(filters.status);
+    const statuses = filters.status.split(',').map(s => s.trim()).filter(Boolean)
+    if (statuses.length > 0 && statuses.length < 4) {
+      query += ` AND station_status IN (${statuses.map(() => '?').join(',')})`
+      params.push(...statuses)
+    }
   }
   if (filters?.org) {
     query += ' AND org_name = ?';

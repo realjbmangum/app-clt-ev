@@ -36,7 +36,7 @@ export function useStations(filters: StationFilters = {}) {
     try {
       const params = new URLSearchParams()
       if (filters.org && filters.org !== 'All') params.set('org', filters.org)
-      if (filters.status?.length) params.set('status', filters.status.join(','))
+      if (filters.status?.length && filters.status.length < 4) params.set('status', filters.status.join(','))
       if (filters.is_public !== null && filters.is_public !== undefined) params.set('is_public', String(filters.is_public))
       if (filters.power_type) params.set('power_type', filters.power_type)
       if (filters.search) params.set('search', filters.search)
