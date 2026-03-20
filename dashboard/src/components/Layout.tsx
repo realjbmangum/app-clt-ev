@@ -75,12 +75,11 @@ export default function Layout({ children }: { children: ReactNode }) {
         {/* Logo */}
         <div className="px-6 pt-6 pb-4 border-b border-white/10">
           <div className="flex items-center gap-3">
-            <svg viewBox="0 0 100 80" className="w-10 h-8 fill-white">
-              <circle cx="50" cy="6" r="5"/>
-              <polygon points="50,16 65,50 85,20 80,60 20,60 15,20 35,50"/>
-              <rect x="18" y="62" width="64" height="8" rx="2"/>
-            </svg>
-            <span className="text-white text-xl font-bold tracking-wide">CLT EV</span>
+            <img src="/crown-white.png" alt="Charlotte Crown" className="w-10 h-10" />
+            <div>
+              <span className="text-white text-lg font-bold tracking-wide">CLT EV</span>
+              <p className="text-white/50 text-[10px] leading-tight">City of Charlotte</p>
+            </div>
           </div>
         </div>
 

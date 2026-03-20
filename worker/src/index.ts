@@ -16,7 +16,7 @@ const app = new Hono<{ Bindings: Env }>();
 
 // CORS for dashboard frontend
 app.use('/api/*', cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000', 'https://cltev.pages.dev'],
+  origin: (origin) => origin, // Allow all origins during prototype phase
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowHeaders: ['Content-Type', 'Authorization'],
 }));

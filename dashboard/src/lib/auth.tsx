@@ -25,7 +25,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (token) {
       try {
         const payload = JSON.parse(atob(token.split('.')[1]))
-        setUser(payload.user)
+        if (payload.exp && payload.exp * 1000 < Date.now()) {
+          localStorage.removeItem('token')
+          return
+        }
+        setUser({ id: payload.sub, email: payload.email, name: payload.email.split('@')[0], role: payload.role })
       } catch {
         localStorage.removeItem('token')
       }
@@ -33,7 +37,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   async function login(email: string, password: string) {
-    const res = await fetch('/api/auth/login', {
+    const baseUrl = import.meta.env.VITE_API_URL || ''
+    const res = await fetch(`${baseUrl}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
