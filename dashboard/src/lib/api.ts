@@ -1,4 +1,5 @@
 const BASE_URL = (import.meta.env.VITE_API_URL || 'https://clt-ev-worker.bmangum1.workers.dev').replace(/\/$/, '')
+console.log('[api] BASE_URL:', BASE_URL)
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const token = localStorage.getItem('token')

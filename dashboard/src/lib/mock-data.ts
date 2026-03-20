@@ -37,6 +37,10 @@ export type StatsResponse = {
   occupied: number
   unreachable: number
   faulted: number
+  total_sessions: number
+  total_kwh: number
+  total_cost: number
+  uptime_percent: number
 }
 
 export const mockStations: Station[] = [
@@ -196,4 +200,8 @@ export const mockStats: StatsResponse = {
   occupied: 20,
   unreachable: 29,
   faulted: 2,
+  total_sessions: 0,
+  total_kwh: 0,
+  total_cost: 0,
+  uptime_percent: 75.5,
 }

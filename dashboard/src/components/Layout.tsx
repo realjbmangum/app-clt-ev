@@ -8,7 +8,6 @@ import {
   DollarSign,
   PieChart,
   Users,
-  Activity,
   LogOut,
 } from 'lucide-react'
 
@@ -40,8 +39,7 @@ const NAV_SECTIONS = [
     label: 'Admin',
     roles: ['admin'] as const,
     items: [
-      { to: '/admin', label: 'Users', icon: Users },
-      { to: '/admin/sync', label: 'Sync Health', icon: Activity },
+      { to: '/admin', label: 'Admin', icon: Users },
     ],
   },
 ]
@@ -52,8 +50,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/utilization': 'Utilization',
   '/cost': 'Cost & Energy',
   '/executive': 'Executive Summary',
-  '/admin': 'User Management',
-  '/admin/sync': 'Sync Health',
+  '/admin': 'Admin',
 }
 
 const ROLE_COLORS: Record<string, string> = {

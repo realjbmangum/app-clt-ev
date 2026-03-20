@@ -28,7 +28,10 @@ export function useStations(filters: StationFilters = {}) {
       if (filters.search) params.set('search', filters.search)
 
       const qs = params.toString()
-      const data = await api.get<Station[]>(`/api/stations${qs ? `?${qs}` : ''}`)
+      const raw = await api.get<{ stations: Station[] } | Station[]>(`/api/stations${qs ? `?${qs}` : ''}`)
+      // API returns { stations: [...] } wrapper; normalize is_public from D1 (1/0) to boolean
+      const arr = Array.isArray(raw) ? raw : raw.stations
+      const data = arr.map(s => ({ ...s, is_public: Boolean(s.is_public) }))
       setStations(data)
     } catch {
       // Fallback to mock data when API is unavailable
@@ -106,8 +109,25 @@ export function useStats() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    api.get<StatsResponse>('/api/stats')
-      .then(setStats)
+    api.get<Record<string, unknown>>('/api/stats')
+      .then(raw => {
+        // API returns { total_stations, status_counts: [{station_status, count}], ... }
+        // Transform to flat shape the UI expects
+        const statusCounts = (raw.status_counts as Array<{ station_status: string; count: number }>) || []
+        const getCount = (s: string) => statusCounts.find(c => c.station_status === s)?.count ?? 0
+        const transformed: StatsResponse = {
+          total: (raw.total_stations as number) ?? 0,
+          available: getCount('AVAILABLE'),
+          occupied: getCount('OCCUPIED'),
+          unreachable: getCount('UNREACHABLE'),
+          faulted: getCount('FAULTED'),
+          total_sessions: (raw.total_sessions as number) ?? 0,
+          total_kwh: (raw.total_kwh as number) ?? 0,
+          total_cost: (raw.total_cost as number) ?? 0,
+          uptime_percent: (raw.uptime_percent as number) ?? 0,
+        }
+        setStats(transformed)
+      })
       .catch(() => {
         setStats(mockStats)
         setError(null)

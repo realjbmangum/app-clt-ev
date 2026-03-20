@@ -1,16 +1,17 @@
 import { useState } from 'react'
-import { UserPlus, CheckCircle, XCircle, Edit2 } from 'lucide-react'
-import DataTable from '../components/DataTable'
-import ChartCard from '../components/ChartCard'
+import { UserPlus, CheckCircle, XCircle, Edit2, ChevronUp, ChevronDown } from 'lucide-react'
 import { mockUsers, mockSyncLogs } from '../lib/mock-analytics'
 
 type Tab = 'users' | 'sync'
+type SortDir = 'asc' | 'desc'
 
 export default function Admin() {
   const [tab, setTab] = useState<Tab>('users')
   const [showAddUser, setShowAddUser] = useState(false)
   const [users, setUsers] = useState(mockUsers)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [sortKey, setSortKey] = useState<string>('name')
+  const [sortDir, setSortDir] = useState<SortDir>('asc')
 
   const [newUser, setNewUser] = useState({ name: '', email: '', role: 'Viewer', password: '' })
 
@@ -42,134 +43,25 @@ export default function Admin() {
     setEditingId(null)
   }
 
+  function handleSort(key: string) {
+    if (sortKey === key) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortKey(key)
+      setSortDir('asc')
+    }
+  }
+
   const syncTypes = ['Station Status', 'Session Data', 'Energy Aggregation']
   const lastSyncs = syncTypes.map((type) => {
     const latest = mockSyncLogs.find((l) => l.type === type)
     return { type, ...latest }
   })
 
-  const userColumns = [
-    { key: 'name', label: 'Name', sortable: true },
-    { key: 'email', label: 'Email', sortable: true },
-    {
-      key: 'role',
-      label: 'Role',
-      sortable: true,
-      render: (row: Record<string, unknown>) => {
-        if (editingId === row.id) {
-          return (
-            <select
-              value={row.role as string}
-              onChange={(e) => changeRole(row.id as string, e.target.value)}
-              onBlur={() => setEditingId(null)}
-              autoFocus
-              className="text-sm border border-gray-300 rounded px-2 py-1"
-            >
-              <option>Admin</option>
-              <option>Manager</option>
-              <option>Viewer</option>
-            </select>
-          )
-        }
-        return (
-          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-            row.role === 'Admin' ? 'bg-purple-100 text-purple-800' :
-            row.role === 'Manager' ? 'bg-blue-100 text-blue-800' :
-            'bg-gray-100 text-gray-800'
-          }`}>
-            {row.role as string}
-          </span>
-        )
-      },
-    },
-    {
-      key: 'status',
-      label: 'Status',
-      sortable: true,
-      render: (row: Record<string, unknown>) => (
-        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-          row.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500'
-        }`}>
-          {row.status as string}
-        </span>
-      ),
-    },
-    {
-      key: 'lastLogin',
-      label: 'Last Login',
-      sortable: true,
-      render: (row: Record<string, unknown>) =>
-        new Date(row.lastLogin as string).toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-        }),
-    },
-    {
-      key: 'id',
-      label: '',
-      sortable: false,
-      render: (row: Record<string, unknown>) => (
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setEditingId(row.id as string)}
-            className="p-1 text-gray-400 hover:text-charlotte-blue rounded"
-            title="Edit role"
-          >
-            <Edit2 className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => toggleUserStatus(row.id as string)}
-            className={`p-1 rounded ${
-              row.status === 'Active' ? 'text-gray-400 hover:text-charlotte-red' : 'text-gray-400 hover:text-charlotte-green-dark'
-            }`}
-            title={row.status === 'Active' ? 'Deactivate' : 'Activate'}
-          >
-            {row.status === 'Active' ? <XCircle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
-          </button>
-        </div>
-      ),
-    },
-  ]
-
-  const syncLogColumns = [
-    { key: 'type', label: 'Type', sortable: true },
-    {
-      key: 'status',
-      label: 'Status',
-      sortable: true,
-      render: (row: Record<string, unknown>) => (
-        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-          row.status === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-        }`}>
-          {row.status as string}
-        </span>
-      ),
-    },
-    { key: 'recordsProcessed', label: 'Records', sortable: true },
-    {
-      key: 'error',
-      label: 'Error',
-      sortable: false,
-      render: (row: Record<string, unknown>) => (
-        row.error ? <span className="text-charlotte-red text-xs">{row.error as string}</span> : <span className="text-gray-300">--</span>
-      ),
-    },
-    {
-      key: 'timestamp',
-      label: 'Timestamp',
-      sortable: true,
-      render: (row: Record<string, unknown>) =>
-        new Date(row.timestamp as string).toLocaleString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-        }),
-    },
-  ]
+  const SortIcon = ({ col }: { col: string }) => {
+    if (sortKey !== col) return null
+    return sortDir === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />
+  }
 
   return (
     <div className="space-y-6">
@@ -257,10 +149,99 @@ export default function Admin() {
             </button>
           )}
 
-          <DataTable
-            columns={userColumns}
-            data={users as unknown as Record<string, unknown>[]}
-          />
+          <div className="bg-white rounded-xl border border-gray-200">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100">
+                    {[
+                      { key: 'name', label: 'Name' },
+                      { key: 'email', label: 'Email' },
+                      { key: 'role', label: 'Role' },
+                      { key: 'status', label: 'Status' },
+                      { key: 'lastLogin', label: 'Last Login' },
+                    ].map(col => (
+                      <th key={col.key} onClick={() => handleSort(col.key)}
+                        className="px-4 py-3 text-left font-medium text-gray-500 cursor-pointer select-none hover:text-charlotte-black">
+                        <div className="flex items-center gap-1">{col.label} <SortIcon col={col.key} /></div>
+                      </th>
+                    ))}
+                    <th className="px-4 py-3 text-left font-medium text-gray-500">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map(user => (
+                    <tr key={user.id} className="border-b border-gray-50 hover:bg-gray-50">
+                      <td className="px-4 py-3 font-medium text-charlotte-black">{user.name}</td>
+                      <td className="px-4 py-3 text-gray-600">{user.email}</td>
+                      <td className="px-4 py-3">
+                        {editingId === user.id ? (
+                          <select
+                            value={user.role}
+                            onChange={(e) => changeRole(user.id, e.target.value)}
+                            onBlur={() => setEditingId(null)}
+                            autoFocus
+                            className="text-sm border border-gray-300 rounded px-2 py-1"
+                          >
+                            <option>Admin</option>
+                            <option>Manager</option>
+                            <option>Viewer</option>
+                          </select>
+                        ) : (
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                            user.role === 'Admin' ? 'bg-purple-100 text-purple-800' :
+                            user.role === 'Manager' ? 'bg-blue-100 text-blue-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {user.role}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                          user.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500'
+                        }`}>
+                          {user.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {new Date(user.lastLogin).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setEditingId(user.id)}
+                            className="p-1 text-gray-400 hover:text-charlotte-blue rounded"
+                            title="Edit role"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => toggleUserStatus(user.id)}
+                            className={`p-1 rounded ${
+                              user.status === 'Active' ? 'text-gray-400 hover:text-charlotte-red' : 'text-gray-400 hover:text-charlotte-green-dark'
+                            }`}
+                            title={user.status === 'Active' ? 'Deactivate' : 'Activate'}
+                          >
+                            {user.status === 'Active' ? <XCircle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {users.length === 0 && (
+                    <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">No users found</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
 
@@ -294,12 +275,51 @@ export default function Admin() {
             ))}
           </div>
 
-          <ChartCard title="Recent Sync Logs">
-            <DataTable
-              columns={syncLogColumns}
-              data={mockSyncLogs as unknown as Record<string, unknown>[]}
-            />
-          </ChartCard>
+          {/* Sync logs table */}
+          <div className="bg-white rounded-xl border border-gray-200">
+            <div className="px-5 py-4 border-b border-gray-100">
+              <h3 className="text-sm font-semibold text-charlotte-black">Recent Sync Logs</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100">
+                    <th className="px-4 py-3 text-left font-medium text-gray-500">Type</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-500">Status</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-500">Records Processed</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-500">Error</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-500">Timestamp</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {mockSyncLogs.map(log => (
+                    <tr key={log.id} className="border-b border-gray-50 hover:bg-gray-50">
+                      <td className="px-4 py-3 text-charlotte-black">{log.type}</td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                          log.status === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`}>
+                          {log.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">{log.recordsProcessed}</td>
+                      <td className="px-4 py-3">
+                        {log.error ? <span className="text-charlotte-red text-xs">{log.error}</span> : <span className="text-gray-300">--</span>}
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {new Date(log.timestamp).toLocaleString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
     </div>

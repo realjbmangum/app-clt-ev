@@ -1,12 +1,8 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
-import mapboxgl from 'mapbox-gl'
-import 'mapbox-gl/dist/mapbox-gl.css'
+import { useState } from 'react'
+import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet'
 import { useStations, useStats, type StationFilters } from '../lib/hooks'
 import type { Station } from '../lib/mock-data'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-
-// Set via VITE_MAPBOX_TOKEN env var. Leave empty for development — map will show placeholder.
-const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || ''
 
 const STATUS_COLORS: Record<string, string> = {
   AVAILABLE: '#71BF44',
@@ -25,10 +21,6 @@ const ORG_OPTIONS = [
 const STATUS_OPTIONS = ['AVAILABLE', 'OCCUPIED', 'UNREACHABLE', 'FAULTED'] as const
 
 export default function MapView() {
-  const mapContainer = useRef<HTMLDivElement>(null)
-  const mapRef = useRef<mapboxgl.Map | null>(null)
-  const popupRef = useRef<mapboxgl.Popup | null>(null)
-
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [filters, setFilters] = useState<StationFilters>({
     org: 'All',
@@ -40,126 +32,7 @@ export default function MapView() {
   const { stations } = useStations(filters)
   const { stats } = useStats()
 
-  const buildGeoJSON = useCallback((data: Station[]): GeoJSON.FeatureCollection => ({
-    type: 'FeatureCollection',
-    features: data
-      .filter(s => s.station_lat && s.station_lng)
-      .map(s => ({
-        type: 'Feature' as const,
-        geometry: { type: 'Point' as const, coordinates: [s.station_lng, s.station_lat] },
-        properties: {
-          id: s.id,
-          evse_name: s.evse_name,
-          address: s.station_address,
-          status: s.station_status,
-          org_name: s.org_name,
-          power_type: s.power_type,
-          connector_format: s.connector_format,
-          is_public: s.is_public,
-          color: STATUS_COLORS[s.station_status] || '#999',
-        },
-      })),
-  }), [])
-
-  // Initialize map
-  useEffect(() => {
-    if (!mapContainer.current || mapRef.current) return
-    if (!MAPBOX_TOKEN) return
-
-    mapboxgl.accessToken = MAPBOX_TOKEN
-    const map = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/light-v11',
-      center: [-80.8431, 35.2271],
-      zoom: 11,
-    })
-
-    map.addControl(new mapboxgl.NavigationControl(), 'top-right')
-
-    map.on('load', () => {
-      map.addSource('stations', {
-        type: 'geojson',
-        data: { type: 'FeatureCollection', features: [] },
-      })
-
-      map.addLayer({
-        id: 'station-circles',
-        type: 'circle',
-        source: 'stations',
-        paint: {
-          'circle-radius': 7,
-          'circle-color': ['get', 'color'],
-          'circle-stroke-width': 2,
-          'circle-stroke-color': '#fff',
-          'circle-opacity': 0.9,
-        },
-      })
-
-      map.on('click', 'station-circles', (e) => {
-        if (!e.features?.length) return
-        const f = e.features[0]
-        const coords = (f.geometry as GeoJSON.Point).coordinates.slice() as [number, number]
-        const p = f.properties!
-
-        if (popupRef.current) popupRef.current.remove()
-
-        popupRef.current = new mapboxgl.Popup({ offset: 15, maxWidth: '320px' })
-          .setLngLat(coords)
-          .setHTML(`
-            <div style="font-family: sans-serif; font-size: 13px; line-height: 1.5;">
-              <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">${p.evse_name}</div>
-              <div style="color: #666;">${p.address}</div>
-              <div style="margin-top: 8px; display: grid; grid-template-columns: auto 1fr; gap: 2px 12px;">
-                <span style="color: #888;">Status</span>
-                <span style="font-weight: 500; color: ${STATUS_COLORS[p.status] || '#999'};">${p.status}</span>
-                <span style="color: #888;">Org</span>
-                <span>${p.org_name}</span>
-                <span style="color: #888;">Power</span>
-                <span>${p.power_type}</span>
-                <span style="color: #888;">Connector</span>
-                <span>${p.connector_format}</span>
-                <span style="color: #888;">Access</span>
-                <span>${p.is_public === 'true' || p.is_public === true ? 'Public' : 'Private'}</span>
-              </div>
-            </div>
-          `)
-          .addTo(map)
-      })
-
-      map.on('mouseenter', 'station-circles', () => {
-        map.getCanvas().style.cursor = 'pointer'
-      })
-      map.on('mouseleave', 'station-circles', () => {
-        map.getCanvas().style.cursor = ''
-      })
-    })
-
-    mapRef.current = map
-
-    return () => {
-      map.remove()
-      mapRef.current = null
-    }
-  }, [])
-
-  // Update map data when stations change
-  useEffect(() => {
-    const map = mapRef.current
-    if (!map) return
-
-    const update = () => {
-      const source = map.getSource('stations') as mapboxgl.GeoJSONSource | undefined
-      if (source) {
-        source.setData(buildGeoJSON(stations))
-      }
-    }
-
-    if (map.isStyleLoaded()) {
-      update()
-    } else {
-      map.on('load', update)
-    }
-  }, [stations, buildGeoJSON])
+  const validStations = stations.filter(s => s.station_lat && s.station_lng)
 
   function toggleStatus(status: string) {
     setFilters(prev => {
@@ -175,7 +48,7 @@ export default function MapView() {
     <div className="flex h-[calc(100vh-64px)] relative">
       {/* Sidebar filter panel */}
       <div
-        className={`absolute top-0 left-0 z-10 h-full bg-white border-r border-gray-200 shadow-lg transition-all duration-300 ${
+        className={`absolute top-0 left-0 z-[1000] h-full bg-white border-r border-gray-200 shadow-lg transition-all duration-300 ${
           sidebarOpen ? 'w-72' : 'w-0 overflow-hidden'
         }`}
       >
@@ -255,7 +128,7 @@ export default function MapView() {
       {/* Sidebar toggle */}
       <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
-        className={`absolute z-20 top-4 bg-white border border-gray-200 shadow rounded-r-lg p-1.5 hover:bg-gray-50 transition-all ${
+        className={`absolute z-[1001] top-4 bg-white border border-gray-200 shadow rounded-r-lg p-1.5 hover:bg-gray-50 transition-all ${
           sidebarOpen ? 'left-72' : 'left-0'
         }`}
       >
@@ -265,7 +138,7 @@ export default function MapView() {
       {/* Map area */}
       <div className="flex-1 flex flex-col">
         {/* Status summary bar */}
-        <div className="bg-white border-b border-gray-200 px-4 py-2.5 flex items-center gap-6 text-sm z-10">
+        <div className="bg-white border-b border-gray-200 px-4 py-2.5 flex items-center gap-6 text-sm z-[1000]">
           {stats && (
             <>
               <StatusCount label="Available" count={stats.available} color={STATUS_COLORS.AVAILABLE} />
@@ -278,19 +151,59 @@ export default function MapView() {
         </div>
 
         {/* Map container */}
-        {MAPBOX_TOKEN ? (
-          <div ref={mapContainer} className="flex-1" />
-        ) : (
-          <div className="flex-1 flex items-center justify-center bg-gray-100">
-            <div className="text-center text-gray-500">
-              <p className="text-lg font-medium">Map requires Mapbox token</p>
-              <p className="text-sm mt-1">Set VITE_MAPBOX_TOKEN in your .env file</p>
-              <p className="text-xs mt-3 text-gray-400">{stations.length} stations loaded</p>
-            </div>
-          </div>
-        )}
+        <div className="flex-1">
+          <MapContainer
+            center={[35.2271, -80.8431]}
+            zoom={11}
+            style={{ height: '100%', width: '100%' }}
+          >
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            {validStations.map(station => (
+              <StationMarker key={station.id} station={station} />
+            ))}
+          </MapContainer>
+        </div>
       </div>
     </div>
+  )
+}
+
+function StationMarker({ station }: { station: Station }) {
+  const color = STATUS_COLORS[station.station_status] || '#999'
+  return (
+    <CircleMarker
+      center={[station.station_lat, station.station_lng]}
+      radius={7}
+      pathOptions={{
+        fillColor: color,
+        color: '#fff',
+        weight: 2,
+        opacity: 0.9,
+        fillOpacity: 0.9,
+      }}
+    >
+      <Popup maxWidth={320}>
+        <div style={{ fontFamily: 'sans-serif', fontSize: '13px', lineHeight: 1.5 }}>
+          <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>{station.evse_name}</div>
+          <div style={{ color: '#666' }}>{station.station_address}</div>
+          <div style={{ marginTop: '8px', display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '2px 12px' }}>
+            <span style={{ color: '#888' }}>Status</span>
+            <span style={{ fontWeight: 500, color }}>{station.station_status}</span>
+            <span style={{ color: '#888' }}>Org</span>
+            <span>{station.org_name}</span>
+            <span style={{ color: '#888' }}>Power</span>
+            <span>{station.power_type}</span>
+            <span style={{ color: '#888' }}>Connector</span>
+            <span>{station.connector_format}</span>
+            <span style={{ color: '#888' }}>Access</span>
+            <span>{!!station.is_public ? 'Public' : 'Private'}</span>
+          </div>
+        </div>
+      </Popup>
+    </CircleMarker>
   )
 }
 
