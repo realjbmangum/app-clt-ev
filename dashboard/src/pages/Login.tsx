@@ -55,16 +55,16 @@ export default function Login() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                Email
+                Username
               </label>
               <input
                 id="email"
-                type="email"
+                type="text"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-charlotte-green-dark focus:border-transparent"
-                placeholder="user@charlottenc.gov"
+                placeholder="demo"
               />
             </div>
             <div>
