@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
-import { X, MapPin, Clock, Zap, ChevronRight, Search, Download, ChevronUp, ChevronDown } from 'lucide-react'
+import { X, MapPin, Clock, Zap, ChevronRight, Search, Download, ChevronUp, ChevronDown, Wrench } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import StatusBadge from '../components/StatusBadge'
 import { useStations, useSessions, useStats, type StationFilters } from '../lib/hooks'
@@ -103,8 +104,8 @@ export default function StationList() {
 
       {/* KPI Cards + Pie Chart */}
       {stats && (
-        <div className="flex gap-4">
-          <div className="flex-1 grid grid-cols-5 gap-3">
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             {[
               { label: 'Total Stations', value: stats.total, color: '#6B7280', status: '' },
               { label: 'Available', value: stats.available, color: STATUS_COLORS.AVAILABLE, status: 'AVAILABLE' },
@@ -134,7 +135,7 @@ export default function StationList() {
               </button>
             ))}
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-center" style={{ width: 160 }}>
+          <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-center w-full md:w-[160px]">
             <div className="relative">
               <ResponsiveContainer width={120} height={120}>
                 <PieChart>
@@ -276,7 +277,7 @@ export default function StationList() {
 
       {/* Detail panel */}
       {selectedStation && (
-        <div className="fixed inset-y-0 right-0 w-96 bg-white shadow-2xl border-l border-gray-200 z-50 overflow-y-auto">
+        <div className="fixed inset-y-0 right-0 w-full md:w-96 bg-white shadow-2xl border-l border-gray-200 z-50 overflow-y-auto">
           <div className="p-5">
             <div className="flex items-start justify-between mb-4">
               <div>
@@ -331,6 +332,15 @@ export default function StationList() {
                 ))}
               </div>
             )}
+
+            <div className="mt-6 pt-4 border-t border-gray-100">
+              <Link
+                to="/maintenance"
+                className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-orange-50 text-orange-700 text-sm font-medium rounded-lg hover:bg-orange-100 transition-colors"
+              >
+                <Wrench className="w-4 h-4" /> Report Issue
+              </Link>
+            </div>
           </div>
         </div>
       )}

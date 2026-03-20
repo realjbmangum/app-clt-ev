@@ -110,3 +110,20 @@ CREATE INDEX idx_sessions_time ON sessions(start_time);
 CREATE INDEX idx_energy_station_date ON energy_readings(station_charger_id, reading_date);
 CREATE INDEX idx_sync_type ON sync_logs(sync_type, completed_at);
 CREATE INDEX idx_status_history ON station_status_history(station_charger_id, changed_at);
+
+-- maintenance_logs: track station maintenance issues
+CREATE TABLE IF NOT EXISTS maintenance_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  station_charger_id TEXT NOT NULL,
+  station_name TEXT,
+  reported_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  resolved_at DATETIME,
+  issue_type TEXT NOT NULL CHECK(issue_type IN ('FAULTED','UNREACHABLE','DAMAGED','SCHEDULED','OTHER')),
+  description TEXT,
+  assigned_to TEXT,
+  status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','in_progress','resolved')),
+  notes TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_maintenance_status ON maintenance_logs(status);
+CREATE INDEX IF NOT EXISTS idx_maintenance_station ON maintenance_logs(station_charger_id);

@@ -7,6 +7,7 @@ import sessionRoutes from './routes/sessions';
 import statsRoutes from './routes/stats';
 import authRoutes from './routes/auth';
 import adminRoutes from './routes/admin';
+import maintenanceRoutes from './routes/maintenance';
 
 import { syncStationStatuses } from './sync/station-sync';
 import { syncChargingSessions } from './sync/session-sync';
@@ -33,6 +34,7 @@ app.route('/api/sessions', sessionRoutes);
 app.route('/api/stats', statsRoutes);
 app.route('/api/auth', authRoutes);
 app.route('/api', adminRoutes);
+app.route('/api/maintenance', maintenanceRoutes);
 
 // Global error handler
 app.onError((err, c) => {

@@ -326,3 +326,63 @@ export async function insertStatusChange(db: D1Database, chargerId: string, oldS
     'INSERT INTO station_status_history (station_charger_id, old_status, new_status) VALUES (?, ?, ?)'
   ).bind(chargerId, oldStatus, newStatus).run();
 }
+
+// --- Maintenance Logs ---
+
+export async function getMaintenanceLogs(db: D1Database, filters?: {
+  status?: string;
+  issue_type?: string;
+}) {
+  let query = 'SELECT * FROM maintenance_logs WHERE 1=1';
+  const params: string[] = [];
+
+  if (filters?.status) {
+    query += ' AND status = ?';
+    params.push(filters.status);
+  }
+  if (filters?.issue_type) {
+    query += ' AND issue_type = ?';
+    params.push(filters.issue_type);
+  }
+
+  query += ' ORDER BY reported_at DESC';
+  return db.prepare(query).bind(...params).all();
+}
+
+export async function createMaintenanceLog(db: D1Database, data: {
+  station_charger_id: string;
+  station_name?: string;
+  issue_type: string;
+  description?: string;
+  assigned_to?: string;
+}) {
+  return db.prepare(
+    `INSERT INTO maintenance_logs (station_charger_id, station_name, issue_type, description, assigned_to)
+     VALUES (?, ?, ?, ?, ?)`
+  ).bind(
+    data.station_charger_id,
+    data.station_name || null,
+    data.issue_type,
+    data.description || null,
+    data.assigned_to || null
+  ).run();
+}
+
+export async function updateMaintenanceLog(db: D1Database, id: number, updates: {
+  status?: string;
+  notes?: string;
+  resolved_at?: string;
+  assigned_to?: string;
+}) {
+  const sets: string[] = [];
+  const params: (string | number)[] = [];
+
+  if (updates.status !== undefined) { sets.push('status = ?'); params.push(updates.status); }
+  if (updates.notes !== undefined) { sets.push('notes = ?'); params.push(updates.notes); }
+  if (updates.resolved_at !== undefined) { sets.push('resolved_at = ?'); params.push(updates.resolved_at); }
+  if (updates.assigned_to !== undefined) { sets.push('assigned_to = ?'); params.push(updates.assigned_to); }
+
+  if (sets.length === 0) return;
+  params.push(id);
+  return db.prepare(`UPDATE maintenance_logs SET ${sets.join(', ')} WHERE id = ?`).bind(...params).run();
+}

@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import {
@@ -8,7 +8,11 @@ import {
   DollarSign,
   PieChart,
   Users,
+  TrendingUp,
   LogOut,
+  Menu,
+  X,
+  Wrench,
 } from 'lucide-react'
 
 const NAV_SECTIONS = [
@@ -19,6 +23,7 @@ const NAV_SECTIONS = [
       { to: '/map', label: 'Map', icon: MapPin },
       { to: '/stations', label: 'Stations', icon: List },
       { to: '/utilization', label: 'Utilization', icon: BarChart3 },
+      { to: '/maintenance', label: 'Maintenance', icon: Wrench },
     ],
   },
   {
@@ -36,6 +41,13 @@ const NAV_SECTIONS = [
     ],
   },
   {
+    label: 'Planning',
+    roles: ['leadership', 'admin'] as const,
+    items: [
+      { to: '/forecast', label: 'Forecast', icon: TrendingUp },
+    ],
+  },
+  {
     label: 'Admin',
     roles: ['admin'] as const,
     items: [
@@ -50,6 +62,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/utilization': 'Utilization',
   '/cost': 'Cost & Energy',
   '/executive': 'Executive Summary',
+  '/forecast': 'Forecast & Planning',
+  '/maintenance': 'Maintenance',
   '/admin': 'Admin',
 }
 
@@ -64,13 +78,26 @@ export default function Layout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth()
   const location = useLocation()
   const pageTitle = PAGE_TITLES[location.pathname] || 'Dashboard'
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   return (
     <div className="flex h-screen">
+      {/* Mobile backdrop */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-64 flex-shrink-0 bg-charlotte-green-dark flex flex-col">
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-64 flex-shrink-0 bg-charlotte-green-dark flex flex-col transform transition-transform md:relative md:translate-x-0 ${
+          mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
         {/* Logo */}
-        <div className="px-6 pt-6 pb-4 border-b border-white/10">
+        <div className="px-6 pt-6 pb-4 border-b border-white/10 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src="/crown-white.png" alt="Charlotte Crown" className="w-10 h-10" />
             <div>
@@ -78,6 +105,12 @@ export default function Layout({ children }: { children: ReactNode }) {
               <p className="text-white/50 text-[10px] leading-tight">City of Charlotte</p>
             </div>
           </div>
+          <button
+            onClick={() => setMobileMenuOpen(false)}
+            className="p-1 text-white/50 hover:text-white md:hidden"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Navigation */}
@@ -96,6 +129,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                     <li key={item.to}>
                       <NavLink
                         to={item.to}
+                        onClick={() => setMobileMenuOpen(false)}
                         className={({ isActive }) =>
                           `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                             isActive
@@ -140,7 +174,13 @@ export default function Layout({ children }: { children: ReactNode }) {
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="h-16 flex-shrink-0 bg-white border-b border-gray-200 flex items-center px-8">
+        <header className="h-16 flex-shrink-0 bg-white border-b border-gray-200 flex items-center px-4 md:px-8">
+          <button
+            onClick={() => setMobileMenuOpen(true)}
+            className="p-2 -ml-2 mr-2 text-gray-600 hover:text-charlotte-black md:hidden"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
           <div>
             <h1 className="text-lg font-semibold text-charlotte-black">{pageTitle}</h1>
             <p className="text-xs text-gray-400">CLT EV Charging Analytics</p>
@@ -148,7 +188,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-auto bg-gray-50 p-8">
+        <main className="flex-1 overflow-auto bg-gray-50 p-4 md:p-8">
           {children}
         </main>
       </div>

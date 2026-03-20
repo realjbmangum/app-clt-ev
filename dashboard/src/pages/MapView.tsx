@@ -220,6 +220,14 @@ export default function MapView() {
 
   return (
     <div className="flex h-[calc(100vh-64px)] relative">
+      {/* Mobile backdrop for filter sidebar */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-[999] md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar filter panel */}
       <div
         className={`absolute top-0 left-0 z-[1000] h-full bg-white border-r border-gray-200 shadow-lg transition-all duration-300 ${
@@ -312,7 +320,7 @@ export default function MapView() {
       {/* Map area */}
       <div className="flex-1 flex flex-col">
         {/* Status summary bar */}
-        <div className="bg-white border-b border-gray-200 px-4 py-2.5 flex items-center gap-6 text-sm z-[1000]">
+        <div className="bg-white border-b border-gray-200 px-4 py-2.5 flex flex-wrap items-center gap-3 md:gap-6 text-sm z-[1000]">
           {stats && (
             <>
               <StatusCount label="Available" count={stats.available} color={STATUS_COLORS.AVAILABLE} />
