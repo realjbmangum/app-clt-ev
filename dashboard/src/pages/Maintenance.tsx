@@ -31,14 +31,6 @@ const STATUS_STYLES: Record<string, string> = {
   resolved: 'bg-green-100 text-green-800',
 }
 
-const MOCK_LOGS: MaintenanceLog[] = [
-  { id: 1, station_charger_id: '155469', station_name: 'CMPD LEC EV4', reported_at: '2026-03-18T09:00:00Z', resolved_at: null, issue_type: 'FAULTED', description: 'Station not responding to commands. LED panel dark.', assigned_to: 'Marcus Williams', status: 'open', notes: null, created_at: '2026-03-18T09:00:00Z' },
-  { id: 2, station_charger_id: '200010', station_name: 'GC GATEWAY 1', reported_at: '2026-03-15T14:30:00Z', resolved_at: null, issue_type: 'FAULTED', description: 'Connector damaged - reported by user.', assigned_to: 'Sarah Chen', status: 'in_progress', notes: null, created_at: '2026-03-15T14:30:00Z' },
-  { id: 3, station_charger_id: '5405', station_name: 'CLT AIRPORT BUS VALET 02', reported_at: '2026-03-10T08:00:00Z', resolved_at: '2026-03-12T16:00:00Z', issue_type: 'UNREACHABLE', description: 'Network connectivity lost after power outage.', assigned_to: 'David Kim', status: 'resolved', notes: null, created_at: '2026-03-10T08:00:00Z' },
-  { id: 4, station_charger_id: '136493', station_name: 'SOUTHEND 02', reported_at: '2026-03-19T11:15:00Z', resolved_at: null, issue_type: 'UNREACHABLE', description: 'Intermittent connection drops.', assigned_to: 'Amanda Torres', status: 'open', notes: null, created_at: '2026-03-19T11:15:00Z' },
-  { id: 5, station_charger_id: '145279', station_name: 'HUNTERSVILLE 02', reported_at: '2026-03-17T07:00:00Z', resolved_at: null, issue_type: 'SCHEDULED', description: 'Quarterly maintenance inspection.', assigned_to: 'Marcus Williams', status: 'in_progress', notes: null, created_at: '2026-03-17T07:00:00Z' },
-]
-
 export default function Maintenance() {
   const [logs, setLogs] = useState<MaintenanceLog[]>([])
   const [loading, setLoading] = useState(true)
@@ -68,10 +60,7 @@ export default function Maintenance() {
       const data = await api.get<{ logs: MaintenanceLog[] }>(`/api/maintenance${qs ? `?${qs}` : ''}`)
       setLogs(data.logs || [])
     } catch {
-      let filtered = [...MOCK_LOGS]
-      if (statusFilter) filtered = filtered.filter(l => l.status === statusFilter)
-      if (issueTypeFilter) filtered = filtered.filter(l => l.issue_type === issueTypeFilter)
-      setLogs(filtered)
+      setLogs([])
     } finally {
       setLoading(false)
     }

@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { api } from './api'
-import { mockStations, mockSessions, mockStats } from './mock-data'
 import type { Station, Session, StatsResponse } from './mock-data'
-import { dailyEnergy, costBreakdown } from './mock-analytics'
 
 export type EnergyTimelineEntry = { date: string; kwh: number; cost: number }
 export type EnergyByOrg = { org_name: string; total_kwh: number; total_cost: number; session_count: number }
@@ -47,32 +45,9 @@ export function useStations(filters: StationFilters = {}) {
       const arr = Array.isArray(raw) ? raw : raw.stations
       const data = arr.map(s => ({ ...s, is_public: Boolean(s.is_public) }))
       setStations(data)
-    } catch {
-      // Fallback to mock data when API is unavailable
-      let filtered = [...mockStations]
-
-      if (filters.org && filters.org !== 'All') {
-        filtered = filtered.filter(s => s.org_name === filters.org)
-      }
-      if (filters.status?.length) {
-        filtered = filtered.filter(s => filters.status!.includes(s.station_status))
-      }
-      if (filters.is_public !== null && filters.is_public !== undefined) {
-        filtered = filtered.filter(s => s.is_public === filters.is_public)
-      }
-      if (filters.power_type) {
-        filtered = filtered.filter(s => s.power_type === filters.power_type)
-      }
-      if (filters.search) {
-        const q = filters.search.toLowerCase()
-        filtered = filtered.filter(s =>
-          s.evse_name.toLowerCase().includes(q) ||
-          s.station_address.toLowerCase().includes(q)
-        )
-      }
-
-      setStations(filtered)
-      setError(null) // Suppress error when mock data is used
+    } catch (err) {
+      setStations([])
+      setError(err instanceof Error ? err.message : 'Failed to fetch stations')
     } finally {
       setLoading(false)
     }
@@ -105,11 +80,9 @@ export function useSessions(stationId?: string, dateRange?: { start: string; end
 
     api.get<{ sessions: Session[] }>(`/api/sessions?${params}`)
       .then(data => setSessions(Array.isArray(data) ? data : data.sessions || []))
-      .catch(() => {
-        // Fallback to mock sessions filtered by station
-        const filtered = mockSessions.filter(s => s.station_charger_id === stationId)
-        setSessions(filtered)
-        setError(null)
+      .catch((err) => {
+        setSessions([])
+        setError(err instanceof Error ? err.message : 'Failed to fetch sessions')
       })
       .finally(() => setLoading(false))
   }, [stationId, dateRange?.start, dateRange?.end])
@@ -142,9 +115,9 @@ export function useStats() {
         }
         setStats(transformed)
       })
-      .catch(() => {
-        setStats(mockStats)
-        setError(null)
+      .catch((err) => {
+        setStats(null)
+        setError(err instanceof Error ? err.message : 'Failed to fetch stats')
       })
       .finally(() => setLoading(false))
   }, [])
@@ -161,31 +134,9 @@ export function useEnergyStats(dateRange?: string) {
     const params = dateRange ? `?range=${dateRange}` : ''
     api.get<EnergyStatsResponse>(`/api/stats/energy${params}`)
       .then(setData)
-      .catch(() => {
-        // Fallback to mock data reshaped to match API format
-        const timeline: EnergyTimelineEntry[] = dailyEnergy.map(d => ({
-          date: d.date,
-          kwh: d.kWh,
-          cost: d.cost,
-        }))
-        const byOrgMap = new Map<string, EnergyByOrg>()
-        for (const row of costBreakdown) {
-          const existing = byOrgMap.get(row.orgUnit)
-          if (existing) {
-            existing.total_kwh += row.totalKWh
-            existing.total_cost += row.totalCost
-            existing.session_count += row.sessions
-          } else {
-            byOrgMap.set(row.orgUnit, {
-              org_name: row.orgUnit,
-              total_kwh: row.totalKWh,
-              total_cost: row.totalCost,
-              session_count: row.sessions,
-            })
-          }
-        }
-        setData({ timeline, by_org: Array.from(byOrgMap.values()) })
-        setError(null)
+      .catch((err) => {
+        setData(null)
+        setError(err instanceof Error ? err.message : 'Failed to fetch energy stats')
       })
       .finally(() => setLoading(false))
   }, [dateRange])
@@ -202,10 +153,9 @@ export function useUtilizationStats(dateRange?: string) {
     const params = dateRange ? `?range=${dateRange}` : ''
     api.get<UtilizationStatsResponse>(`/api/stats/utilization${params}`)
       .then(setData)
-      .catch(() => {
-        // No mock fallback for utilization — leave null so pages show real zeros
+      .catch((err) => {
         setData(null)
-        setError(null)
+        setError(err instanceof Error ? err.message : 'Failed to fetch utilization stats')
       })
       .finally(() => setLoading(false))
   }, [dateRange])

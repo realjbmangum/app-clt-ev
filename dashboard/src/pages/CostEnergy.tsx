@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import {
   ResponsiveContainer,
   LineChart,
@@ -12,57 +12,37 @@ import {
   Legend,
 } from 'recharts'
 import ChartCard from '../components/ChartCard'
-import DateRangePicker, { type RangeKey, useFilteredData } from '../components/DateRangePicker'
-import { useStats } from '../lib/hooks'
-import {
-  dailyEnergy,
-  weeklyEnergy,
-  monthlyEnergy,
-  costBreakdown,
-} from '../lib/mock-analytics'
+import DateRangePicker, { type RangeKey } from '../components/DateRangePicker'
+import EmptyState from '../components/EmptyState'
+import { useStats, useEnergyStats } from '../lib/hooks'
 import { Download, Zap, X } from 'lucide-react'
-
-type Granularity = 'daily' | 'weekly' | 'monthly'
 
 export default function CostEnergy() {
   const [range, setRange] = useState<RangeKey>('30d')
-  const [granularity, setGranularity] = useState<Granularity>('daily')
   const [showDukeModal, setShowDukeModal] = useState(false)
 
   const { stats } = useStats()
+  const { data: energyData } = useEnergyStats(range)
 
   const totalKwh = stats?.total_kwh ?? 0
   const totalCost = stats?.total_cost ?? 0
   const totalSessions = stats?.total_sessions ?? 0
+  const costPerKwh = totalKwh > 0 ? (totalCost / totalKwh).toFixed(3) : '0.000'
 
-  const filteredDaily = useFilteredData(dailyEnergy, range)
+  const timeline = energyData?.timeline ?? []
+  const byOrg = energyData?.by_org ?? []
 
-  const energyData = useMemo(() => {
-    if (granularity === 'weekly') return weeklyEnergy
-    if (granularity === 'monthly') return monthlyEnergy
-    return filteredDaily
-  }, [filteredDaily, granularity])
-
-  const periodKwh = useMemo(() => energyData.reduce((s, d) => s + d.kWh, 0), [energyData])
-  const periodCost = useMemo(() => +energyData.reduce((s, d) => s + d.cost, 0).toFixed(2), [energyData])
-
-  // ChargePoint avg rate from cost breakdown
-  const chargePointAvgRate = useMemo(() => {
-    const totalKWhAll = costBreakdown.reduce((s, r) => s + r.totalKWh, 0)
-    const totalCostAll = costBreakdown.reduce((s, r) => s + r.totalCost, 0)
-    return totalKWhAll > 0 ? +(totalCostAll / totalKWhAll).toFixed(4) : 0.12
-  }, [])
-
-  const dukeRates = useMemo(() => [
-    { name: 'ChargePoint Avg', rate: chargePointAvgRate },
+  const dukeRates = [
+    { name: 'ChargePoint Avg', rate: totalKwh > 0 ? +(totalCost / totalKwh).toFixed(4) : 0 },
     { name: 'Duke Residential', rate: 0.1189 },
     { name: 'Duke Commercial', rate: 0.0891 },
-  ], [chargePointAvgRate])
+  ]
 
   function handleExport() {
-    const header = 'Location,Org Unit,Total kWh,Total Cost,Sessions,Avg Cost/Session'
-    const rows = costBreakdown.map(r =>
-      [r.location, r.orgUnit, r.totalKWh, r.totalCost, r.sessions, r.avgCostPerSession]
+    if (byOrg.length === 0) return
+    const header = 'Org Unit,Total kWh,Total Cost,Sessions'
+    const rows = byOrg.map(r =>
+      [r.org_name, r.total_kwh, r.total_cost, r.session_count]
         .map(v => `"${v}"`)
         .join(',')
     )
@@ -96,66 +76,48 @@ export default function CostEnergy() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <p className="text-xs text-gray-500 mb-1">Total kWh Consumed</p>
-          <p className="text-2xl font-bold text-charlotte-black">{(totalKwh || periodKwh).toLocaleString()}</p>
-          {totalKwh === 0 && <p className="text-xs text-gray-400 mt-1">Sample data shown</p>}
+          <p className="text-2xl font-bold text-charlotte-black">{totalKwh.toLocaleString()}</p>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <p className="text-xs text-gray-500 mb-1">Total Estimated Cost</p>
-          <p className="text-2xl font-bold text-charlotte-black">${(totalCost || periodCost).toLocaleString()}</p>
-          {totalCost === 0 && <p className="text-xs text-gray-400 mt-1">Sample data shown</p>}
+          <p className="text-2xl font-bold text-charlotte-black">${totalCost.toLocaleString()}</p>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <p className="text-xs text-gray-500 mb-1">Cost per kWh (Avg)</p>
-          <p className="text-2xl font-bold text-charlotte-black">
-            ${periodKwh > 0 ? (periodCost / periodKwh).toFixed(3) : '0.00'}
-          </p>
+          <p className="text-2xl font-bold text-charlotte-black">${costPerKwh}</p>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <p className="text-xs text-gray-500 mb-1">Sessions</p>
           <p className="text-2xl font-bold text-charlotte-black">{totalSessions.toLocaleString()}</p>
-          {totalSessions === 0 && <p className="text-xs text-gray-400 mt-1">Awaiting sync</p>}
         </div>
       </div>
 
       {/* Energy chart */}
       <ChartCard title="Energy Consumption (kWh)">
-        <div className="flex gap-1 mb-4">
-          {(['daily', 'weekly', 'monthly'] as Granularity[]).map((g) => (
-            <button
-              key={g}
-              onClick={() => setGranularity(g)}
-              className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                granularity === g
-                  ? 'bg-charlotte-green-dark text-white'
-                  : 'bg-gray-100 text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {g.charAt(0).toUpperCase() + g.slice(1)}
-            </button>
-          ))}
-        </div>
-        {energyData.length > 0 && (
+        {timeline.length > 0 ? (
           <div className="min-h-[200px]" style={{ width: '100%', height: 288 }}>
             <ResponsiveContainer>
-              <LineChart data={energyData}>
+              <LineChart data={timeline}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip />
                 <Legend />
-                <Line type="monotone" dataKey="kWh" stroke="#24824A" strokeWidth={2} dot={false} name="kWh" />
+                <Line type="monotone" dataKey="kwh" stroke="#24824A" strokeWidth={2} dot={false} name="kWh" />
               </LineChart>
             </ResponsiveContainer>
           </div>
+        ) : (
+          <EmptyState title="No energy data available yet" />
         )}
       </ChartCard>
 
       {/* Cost trend chart */}
       <ChartCard title="Cost Trend ($)">
-        {energyData.length > 0 && (
+        {timeline.length > 0 ? (
           <div className="min-h-[200px]" style={{ width: '100%', height: 288 }}>
             <ResponsiveContainer>
-              <LineChart data={energyData}>
+              <LineChart data={timeline}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${v}`} />
@@ -165,45 +127,49 @@ export default function CostEnergy() {
               </LineChart>
             </ResponsiveContainer>
           </div>
+        ) : (
+          <EmptyState title="No cost data available yet" />
         )}
       </ChartCard>
 
       {/* Breakdown table */}
-      <ChartCard title="Cost Breakdown by Location">
-        <div className="flex justify-end mb-3">
-          <button onClick={handleExport} className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-charlotte-green-dark">
-            <Download className="w-4 h-4" /> Export CSV
-          </button>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Location</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Org Unit</th>
-                <th className="px-4 py-3 text-right font-medium text-gray-500">Total kWh</th>
-                <th className="px-4 py-3 text-right font-medium text-gray-500">Total Cost</th>
-                <th className="px-4 py-3 text-right font-medium text-gray-500">Sessions</th>
-                <th className="px-4 py-3 text-right font-medium text-gray-500">Avg Cost/Session</th>
-              </tr>
-            </thead>
-            <tbody>
-              {costBreakdown.map((row, i) => (
-                <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-charlotte-black">{row.location}</td>
-                  <td className="px-4 py-3 text-gray-600">{row.orgUnit}</td>
-                  <td className="px-4 py-3 text-right">{Number(row.totalKWh).toLocaleString()}</td>
-                  <td className="px-4 py-3 text-right">${Number(row.totalCost).toLocaleString()}</td>
-                  <td className="px-4 py-3 text-right">{Number(row.sessions).toLocaleString()}</td>
-                  <td className="px-4 py-3 text-right">${row.avgCostPerSession}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      <ChartCard title="Cost Breakdown by Org Unit">
+        {byOrg.length > 0 ? (
+          <>
+            <div className="flex justify-end mb-3">
+              <button onClick={handleExport} className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-charlotte-green-dark">
+                <Download className="w-4 h-4" /> Export CSV
+              </button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="px-4 py-3 text-left font-medium text-gray-500">Org Unit</th>
+                    <th className="px-4 py-3 text-right font-medium text-gray-500">Total kWh</th>
+                    <th className="px-4 py-3 text-right font-medium text-gray-500">Total Cost</th>
+                    <th className="px-4 py-3 text-right font-medium text-gray-500">Sessions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {byOrg.map((row, i) => (
+                    <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
+                      <td className="px-4 py-3 font-medium text-charlotte-black">{row.org_name}</td>
+                      <td className="px-4 py-3 text-right">{Number(row.total_kwh).toLocaleString()}</td>
+                      <td className="px-4 py-3 text-right">${Number(row.total_cost).toLocaleString()}</td>
+                      <td className="px-4 py-3 text-right">{Number(row.session_count).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        ) : (
+          <EmptyState title="No cost data available yet" />
+        )}
       </ChartCard>
 
-      {/* Duke Energy Rate Comparison Modal (task #16) */}
+      {/* Duke Energy Rate Comparison Modal */}
       {showDukeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white w-full max-w-lg rounded-xl shadow-2xl">

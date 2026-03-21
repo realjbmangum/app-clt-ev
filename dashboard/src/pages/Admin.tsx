@@ -1,19 +1,54 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { UserPlus, CheckCircle, XCircle, Edit2, ChevronUp, ChevronDown } from 'lucide-react'
-import { mockUsers, mockSyncLogs } from '../lib/mock-analytics'
+import { api } from '../lib/api'
+import EmptyState from '../components/EmptyState'
 
 type Tab = 'users' | 'sync'
 type SortDir = 'asc' | 'desc'
 
+type User = {
+  id: string
+  name: string
+  email: string
+  role: string
+  status: 'Active' | 'Inactive'
+  lastLogin: string
+}
+
+type SyncLog = {
+  id: string
+  type: string
+  status: string
+  recordsProcessed: number
+  error?: string
+  timestamp: string
+}
+
 export default function Admin() {
   const [tab, setTab] = useState<Tab>('users')
   const [showAddUser, setShowAddUser] = useState(false)
-  const [users, setUsers] = useState(mockUsers)
+  const [users, setUsers] = useState<User[]>([])
+  const [syncLogs, setSyncLogs] = useState<SyncLog[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [sortKey, setSortKey] = useState<string>('name')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
 
   const [newUser, setNewUser] = useState({ name: '', email: '', role: 'Viewer', password: '' })
+
+  useEffect(() => {
+    api.get<{ users: User[] } | User[]>('/api/users')
+      .then(raw => {
+        const arr = Array.isArray(raw) ? raw : raw.users || []
+        setUsers(arr)
+      })
+      .catch(() => setUsers([]))
+  }, [])
+
+  useEffect(() => {
+    api.get<{ logs: SyncLog[] }>('/api/sync-logs')
+      .then(raw => setSyncLogs(raw.logs || []))
+      .catch(() => setSyncLogs([]))
+  }, [])
 
   function handleAddUser() {
     if (!newUser.name || !newUser.email) return
@@ -54,7 +89,7 @@ export default function Admin() {
 
   const syncTypes = ['Station Status', 'Session Data', 'Energy Aggregation']
   const lastSyncs = syncTypes.map((type) => {
-    const latest = mockSyncLogs.find((l) => l.type === type)
+    const latest = syncLogs.find((l) => l.type === type)
     return { type, ...latest }
   })
 
@@ -253,7 +288,7 @@ export default function Admin() {
               <div key={sync.type} className="bg-white rounded-xl border border-gray-200 p-5">
                 <div className="flex items-center gap-2 mb-2">
                   <div className={`w-3 h-3 rounded-full ${
-                    sync.status === 'success' ? 'bg-green-500' : 'bg-red-500'
+                    sync.status === 'success' ? 'bg-green-500' : sync.status === 'error' ? 'bg-red-500' : 'bg-gray-300'
                   }`} />
                   <h3 className="text-sm font-semibold text-charlotte-black">{sync.type}</h3>
                 </div>
@@ -292,7 +327,7 @@ export default function Admin() {
                   </tr>
                 </thead>
                 <tbody>
-                  {mockSyncLogs.map(log => (
+                  {syncLogs.map(log => (
                     <tr key={log.id} className="border-b border-gray-50 hover:bg-gray-50">
                       <td className="px-4 py-3 text-charlotte-black">{log.type}</td>
                       <td className="px-4 py-3">
@@ -316,6 +351,9 @@ export default function Admin() {
                       </td>
                     </tr>
                   ))}
+                  {syncLogs.length === 0 && (
+                    <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400">No sync logs found</td></tr>
+                  )}
                 </tbody>
               </table>
             </div>
