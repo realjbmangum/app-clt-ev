@@ -45,9 +45,12 @@ export class ChargePointClient {
   private r2: R2Bucket;
 
   constructor(env: Env) {
-    this.apiKey = env.CHARGEPOINT_API_KEY;
-    this.apiPassword = env.CHARGEPOINT_API_PASSWORD;
+    this.apiKey = env.CHARGEPOINT_API_KEY || '';
+    this.apiPassword = env.CHARGEPOINT_API_PASSWORD || '';
     this.r2 = env.R2;
+    if (!this.apiKey || !this.apiPassword) {
+      throw new Error('ChargePoint API credentials not configured (CHARGEPOINT_API_KEY and CHARGEPOINT_API_PASSWORD required)');
+    }
   }
 
   private async soapRequest(soapAction: string, body: string): Promise<string> {
@@ -83,6 +86,10 @@ export class ChargePointClient {
     });
 
     return text;
+  }
+
+  async debugRawResponse(soapAction: string, body: string): Promise<string> {
+    return this.soapRequest(soapAction, body);
   }
 
   async getStationStatus(): Promise<{ stationId: string; status: string; portNumber?: string }[]> {

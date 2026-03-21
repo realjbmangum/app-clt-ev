@@ -9,7 +9,7 @@ import authRoutes from './routes/auth';
 import adminRoutes from './routes/admin';
 import maintenanceRoutes from './routes/maintenance';
 
-import { syncStationStatuses } from './sync/station-sync';
+import { syncStationStatuses, mapStationIds } from './sync/station-sync';
 import { syncChargingSessions } from './sync/session-sync';
 import { aggregateEnergyReadings } from './sync/energy-aggregator';
 
@@ -35,6 +35,59 @@ app.route('/api/stats', statsRoutes);
 app.route('/api/auth', authRoutes);
 app.route('/api', adminRoutes);
 app.route('/api/maintenance', maintenanceRoutes);
+
+// Manual sync triggers
+app.post('/api/sync/stations', async (c) => {
+  await syncStationStatuses(c.env);
+  return c.json({ triggered: 'station_status' });
+});
+// Debug: raw SOAP test
+app.get('/api/debug/soap-test', async (c) => {
+  const { ChargePointClient } = await import('./sync/chargepoint');
+  const client = new ChargePointClient(c.env);
+  try {
+    const result = await client.getStationStatus();
+    return c.json({ count: result.length, sample: result.slice(0, 3) });
+  } catch (err: any) {
+    return c.json({ error: err.message }, 500);
+  }
+});
+app.get('/api/debug/stations-map', async (c) => {
+  const { ChargePointClient } = await import('./sync/chargepoint');
+  const client = new ChargePointClient(c.env);
+  try {
+    const xml = await client.debugRawResponse('getStations', `<tns:getStations>
+      <tns:searchQuery></tns:searchQuery>
+    </tns:getStations>`);
+    return c.text(xml.substring(0, 8000));
+  } catch (err: any) {
+    return c.json({ error: err.message }, 500);
+  }
+});
+app.get('/api/debug/soap-raw', async (c) => {
+  const { ChargePointClient } = await import('./sync/chargepoint');
+  const client = new ChargePointClient(c.env);
+  try {
+    const xml = await client.debugRawResponse('getStationStatus', `<tns:getStationStatus>
+      <tns:searchQuery><tns:orgID></tns:orgID></tns:searchQuery>
+    </tns:getStationStatus>`);
+    return c.text(xml.substring(0, 5000));
+  } catch (err: any) {
+    return c.json({ error: err.message }, 500);
+  }
+});
+app.post('/api/sync/sessions', async (c) => {
+  await syncChargingSessions(c.env);
+  return c.json({ triggered: 'charging_sessions' });
+});
+app.post('/api/sync/map-ids', async (c) => {
+  const result = await mapStationIds(c.env);
+  return c.json(result);
+});
+app.post('/api/sync/energy', async (c) => {
+  await aggregateEnergyReadings(c.env);
+  return c.json({ triggered: 'energy_aggregation' });
+});
 
 // Global error handler
 app.onError((err, c) => {
