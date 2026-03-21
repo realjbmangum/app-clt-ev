@@ -56,21 +56,31 @@ export class ChargePointClient {
   private async soapRequest(soapAction: string, body: string): Promise<string> {
     const envelope = buildSoapEnvelope(this.apiKey, this.apiPassword, body);
 
-    const response = await fetch(SOAP_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'text/xml; charset=utf-8',
-        'SOAPAction': `urn:provider/interface/chargepointservices/${soapAction}`,
-        'User-Agent': 'CLT-EV-Dashboard/1.0 (City of Charlotte; SOAP Client)',
-        'Accept': 'text/xml, application/xml',
-      },
-      body: envelope,
-    });
+    const headers = {
+      'Content-Type': 'text/xml; charset=utf-8',
+      'SOAPAction': `urn:provider/interface/chargepointservices/${soapAction}`,
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) CLT-EV-Dashboard/1.0',
+      'Accept': 'text/xml, application/xml, */*',
+      'Accept-Language': 'en-US,en;q=0.9',
+    };
 
-    const text = await response.text();
+    // Retry up to 3 times on 403 (Cloudflare challenge)
+    let response: Response | null = null;
+    let text = '';
+    for (let attempt = 0; attempt < 3; attempt++) {
+      response = await fetch(SOAP_ENDPOINT, {
+        method: 'POST',
+        headers,
+        body: envelope,
+      });
+      text = await response.text();
+      if (response.ok || response.status !== 403) break;
+      // Wait before retry
+      await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+    }
 
-    if (!response.ok) {
-      throw new Error(`ChargePoint SOAP error ${response.status}: ${text.substring(0, 200)}`);
+    if (!response || !response.ok) {
+      throw new Error(`ChargePoint SOAP error ${response?.status}: ${text.substring(0, 200)}`);
     }
 
     // Check for SOAP fault

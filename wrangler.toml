@@ -15,4 +15,4 @@ binding = "R2"
 bucket_name = "clt-ev-archive"
 
 [triggers]
-crons = ["*/15 * * * *", "0 * * * *", "0 6 * * *"]
+crons = ["*/30 * * * *", "0 * * * *", "0 6 * * *"]

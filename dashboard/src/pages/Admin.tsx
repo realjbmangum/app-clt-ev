@@ -251,6 +251,7 @@ export default function Admin() {
                           year: 'numeric',
                           hour: '2-digit',
                           minute: '2-digit',
+                          timeZone: 'America/New_York',
                         })}
                       </td>
                       <td className="px-4 py-3">
@@ -302,6 +303,7 @@ export default function Admin() {
                   {sync.timestamp
                     ? new Date(sync.timestamp).toLocaleString('en-US', {
                         month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+                        timeZone: 'America/New_York',
                       })
                     : 'Never'}
                 </p>
@@ -352,6 +354,7 @@ export default function Admin() {
                           day: 'numeric',
                           hour: '2-digit',
                           minute: '2-digit',
+                          timeZone: 'America/New_York',
                         })}
                       </td>
                     </tr>
