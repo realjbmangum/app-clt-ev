@@ -61,6 +61,8 @@ export class ChargePointClient {
       headers: {
         'Content-Type': 'text/xml; charset=utf-8',
         'SOAPAction': `urn:provider/interface/chargepointservices/${soapAction}`,
+        'User-Agent': 'CLT-EV-Dashboard/1.0 (City of Charlotte; SOAP Client)',
+        'Accept': 'text/xml, application/xml',
       },
       body: envelope,
     });
