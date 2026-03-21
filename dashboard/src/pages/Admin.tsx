@@ -1,7 +1,22 @@
 import { useState, useEffect } from 'react'
-import { UserPlus, CheckCircle, XCircle, Edit2, ChevronUp, ChevronDown } from 'lucide-react'
+import { UserPlus, CheckCircle, XCircle, Edit2, ChevronUp, ChevronDown, RefreshCw } from 'lucide-react'
 import { api } from '../lib/api'
 import EmptyState from '../components/EmptyState'
+
+// D1 stores timestamps without Z suffix — append it so JS treats as UTC
+function utc(ts: string | undefined | null): string {
+  if (!ts) return ''
+  return ts.endsWith('Z') || ts.includes('+') ? ts : ts + 'Z'
+}
+
+function formatEST(ts: string | undefined | null): string {
+  const s = utc(ts)
+  if (!s) return 'Never'
+  return new Date(s).toLocaleString('en-US', {
+    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+    timeZone: 'America/New_York',
+  })
+}
 
 type Tab = 'users' | 'sync'
 type SortDir = 'asc' | 'desc'
@@ -88,15 +103,34 @@ export default function Admin() {
     }
   }
 
+  const [syncing, setSyncing] = useState<string | null>(null)
+
   const syncTypes = [
-    { label: 'Station Status', key: 'station_status' },
-    { label: 'Session Data', key: 'charging_sessions' },
-    { label: 'Energy Aggregation', key: 'energy_aggregation' },
+    { label: 'Station Status', key: 'station_status', endpoint: '/api/sync/stations' },
+    { label: 'Session Data', key: 'charging_sessions', endpoint: '/api/sync/sessions' },
+    { label: 'Energy Aggregation', key: 'energy_aggregation', endpoint: '/api/sync/energy' },
   ]
-  const lastSyncs = syncTypes.map(({ label, key }) => {
+  const lastSyncs = syncTypes.map(({ label, key, endpoint }) => {
     const latest = syncLogs.find((l) => l.sync_type === key)
-    return { type: label, status: latest?.status, timestamp: latest?.completed_at, records: latest?.records_processed, error: latest?.error_message }
+    return { type: label, key, endpoint, status: latest?.status, timestamp: latest?.completed_at, records: latest?.records_processed, error: latest?.error_message }
   })
+
+  async function triggerSync(endpoint: string, key: string) {
+    setSyncing(key)
+    try {
+      await api.post(endpoint, {})
+      // Refresh sync logs after a short delay
+      setTimeout(async () => {
+        try {
+          const raw = await api.get<{ logs: SyncLog[] }>('/api/sync-logs')
+          setSyncLogs(raw.logs || [])
+        } catch {}
+        setSyncing(null)
+      }, 5000)
+    } catch {
+      setSyncing(null)
+    }
+  }
 
   const SortIcon = ({ col }: { col: string }) => {
     if (sortKey !== col) return null
@@ -245,14 +279,7 @@ export default function Admin() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-gray-600">
-                        {new Date(user.lastLogin).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          timeZone: 'America/New_York',
-                        })}
+                        {formatEST(user.lastLogin)}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
@@ -292,20 +319,24 @@ export default function Admin() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {lastSyncs.map((sync) => (
               <div key={sync.type} className="bg-white rounded-xl border border-gray-200 p-5">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className={`w-3 h-3 rounded-full ${
-                    sync.status === 'success' ? 'bg-green-500' : sync.status === 'error' ? 'bg-red-500' : 'bg-gray-300'
-                  }`} />
-                  <h3 className="text-sm font-semibold text-charlotte-black">{sync.type}</h3>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-3 h-3 rounded-full ${
+                      sync.status === 'success' ? 'bg-green-500' : sync.status === 'error' ? 'bg-red-500' : 'bg-gray-300'
+                    }`} />
+                    <h3 className="text-sm font-semibold text-charlotte-black">{sync.type}</h3>
+                  </div>
+                  <button
+                    onClick={() => triggerSync(sync.endpoint, sync.key)}
+                    disabled={syncing === sync.key}
+                    className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-charlotte-green-dark border border-charlotte-green-dark rounded-lg hover:bg-charlotte-green-dark hover:text-white transition-colors disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${syncing === sync.key ? 'animate-spin' : ''}`} />
+                    {syncing === sync.key ? 'Syncing...' : 'Sync Now'}
+                  </button>
                 </div>
                 <p className="text-xs text-gray-500">
-                  Last sync:{' '}
-                  {sync.timestamp
-                    ? new Date(sync.timestamp).toLocaleString('en-US', {
-                        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-                        timeZone: 'America/New_York',
-                      })
-                    : 'Never'}
+                  Last sync: {formatEST(sync.timestamp)}
                 </p>
                 {sync.status === 'success' && (
                   <p className="text-xs text-gray-400 mt-1">{sync.records} records processed</p>
@@ -349,13 +380,7 @@ export default function Admin() {
                         {log.error_message ? <span className="text-charlotte-red text-xs line-clamp-1">{log.error_message}</span> : <span className="text-gray-300">--</span>}
                       </td>
                       <td className="px-4 py-3 text-gray-600">
-                        {new Date(log.completed_at).toLocaleString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          timeZone: 'America/New_York',
-                        })}
+                        {formatEST(log.completed_at)}
                       </td>
                     </tr>
                   ))}
