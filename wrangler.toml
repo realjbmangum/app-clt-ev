@@ -3,7 +3,7 @@ main = "worker/src/index.ts"
 compatibility_date = "2024-11-01"
 
 [vars]
-CHARGEPOINT_API_URL = "https://na.chargepoint.com/api"
+CHARGEPOINT_API_URL = "https://webservices.chargepoint.com/webservices/chargepoint/services/5.0"
 
 [[d1_databases]]
 binding = "DB"

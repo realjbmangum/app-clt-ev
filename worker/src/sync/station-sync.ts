@@ -2,14 +2,22 @@ import type { Env } from '../types';
 import { ChargePointClient } from './chargepoint';
 import { getAllStations, updateStationStatus, insertStatusChange, logSync } from '../db/queries';
 
+// Map ChargePoint status values to our status format
+function normalizeStatus(cpStatus: string): string {
+  const s = cpStatus.toUpperCase().trim();
+  if (s === 'AVAILABLE' || s === 'OPERATIVE' || s === '1') return 'AVAILABLE';
+  if (s === 'INUSE' || s === 'IN_USE' || s === 'OCCUPIED' || s === '2') return 'OCCUPIED';
+  if (s === 'UNAVAILABLE' || s === 'UNREACHABLE' || s === 'UNKNOWN' || s === '0') return 'UNREACHABLE';
+  if (s === 'FAULTED' || s === 'FAULT' || s === '3') return 'FAULTED';
+  return 'UNREACHABLE';
+}
+
 export async function syncStationStatuses(env: Env): Promise<void> {
   const startedAt = new Date().toISOString();
   let processed = 0;
 
   try {
     const client = new ChargePointClient(env);
-
-    // Get current statuses from ChargePoint
     const apiStatuses = await client.getStationStatus();
 
     // Get current DB stations for comparison
@@ -18,12 +26,11 @@ export async function syncStationStatuses(env: Env): Promise<void> {
       (dbResult.results as any[])?.map(s => [s.charger_id, s]) || []
     );
 
-    // Update statuses and track changes
     for (const apiStation of apiStatuses) {
-      const chargerId = String(apiStation.stationId || apiStation.charger_id || apiStation.id);
-      const newStatus = apiStation.status || apiStation.stationStatus;
-      if (!chargerId || !newStatus) continue;
+      const chargerId = apiStation.stationId;
+      if (!chargerId) continue;
 
+      const newStatus = normalizeStatus(apiStation.status);
       const dbStation = dbStations.get(chargerId);
       if (!dbStation) continue;
 
@@ -46,7 +53,7 @@ export async function syncStationStatuses(env: Env): Promise<void> {
       sync_type: 'station_status',
       status: 'error',
       records_processed: processed,
-      error_message: error.message,
+      error_message: error.message?.substring(0, 500),
       started_at: startedAt,
     });
     console.error('Station sync failed:', error);

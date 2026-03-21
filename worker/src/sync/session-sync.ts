@@ -9,22 +9,23 @@ export async function syncChargingSessions(env: Env): Promise<void> {
   try {
     const client = new ChargePointClient(env);
 
-    // Pull sessions from the last 2 hours to catch any delayed data
+    // Pull sessions from the last 2 hours
     const endTime = new Date().toISOString();
     const startTime = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
 
     const sessions = await client.getChargingSessions({ startTime, endTime });
 
     for (const session of sessions) {
+      if (!session.sessionId || !session.stationId) continue;
+
       await insertSession(env.DB, {
-        session_id: String(session.sessionId || session.session_id || session.id),
-        station_charger_id: String(session.stationId || session.station_id),
-        user_id: session.userId || session.user_id || null,
-        start_time: session.startTime || session.start_time,
-        end_time: session.endTime || session.end_time || null,
-        energy_kwh: parseFloat(session.energyKwh || session.energy_kwh || '0') || undefined,
-        cost_usd: parseFloat(session.cost || session.cost_usd || '0') || undefined,
-        port_number: parseInt(session.portNumber || session.port_number || '0') || undefined,
+        session_id: session.sessionId,
+        station_charger_id: session.stationId,
+        start_time: session.startTime,
+        end_time: session.endTime || undefined,
+        energy_kwh: session.energy || undefined,
+        cost_usd: session.cost || undefined,
+        port_number: parseInt(session.portNumber) || undefined,
       });
       processed++;
     }
@@ -40,7 +41,7 @@ export async function syncChargingSessions(env: Env): Promise<void> {
       sync_type: 'charging_sessions',
       status: 'error',
       records_processed: processed,
-      error_message: error.message,
+      error_message: error.message?.substring(0, 500),
       started_at: startedAt,
     });
     console.error('Session sync failed:', error);

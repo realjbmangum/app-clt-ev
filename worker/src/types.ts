@@ -2,6 +2,7 @@ export interface Env {
   DB: D1Database;
   R2: R2Bucket;
   CHARGEPOINT_API_KEY: string;
+  CHARGEPOINT_API_PASSWORD: string;
   CHARGEPOINT_API_URL: string;
   JWT_SECRET: string;
 }
