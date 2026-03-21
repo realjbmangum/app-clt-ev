@@ -16,12 +16,13 @@ type User = {
 }
 
 type SyncLog = {
-  id: string
-  type: string
+  id: number
+  sync_type: string
   status: string
-  recordsProcessed: number
-  error?: string
-  timestamp: string
+  records_processed: number
+  error_message?: string | null
+  started_at: string
+  completed_at: string
 }
 
 export default function Admin() {
@@ -87,10 +88,14 @@ export default function Admin() {
     }
   }
 
-  const syncTypes = ['Station Status', 'Session Data', 'Energy Aggregation']
-  const lastSyncs = syncTypes.map((type) => {
-    const latest = syncLogs.find((l) => l.type === type)
-    return { type, ...latest }
+  const syncTypes = [
+    { label: 'Station Status', key: 'station_status' },
+    { label: 'Session Data', key: 'charging_sessions' },
+    { label: 'Energy Aggregation', key: 'energy_aggregation' },
+  ]
+  const lastSyncs = syncTypes.map(({ label, key }) => {
+    const latest = syncLogs.find((l) => l.sync_type === key)
+    return { type: label, status: latest?.status, timestamp: latest?.completed_at, records: latest?.records_processed, error: latest?.error_message }
   })
 
   const SortIcon = ({ col }: { col: string }) => {
@@ -301,10 +306,10 @@ export default function Admin() {
                     : 'Never'}
                 </p>
                 {sync.status === 'success' && (
-                  <p className="text-xs text-gray-400 mt-1">{sync.recordsProcessed} records processed</p>
+                  <p className="text-xs text-gray-400 mt-1">{sync.records} records processed</p>
                 )}
                 {sync.status === 'error' && sync.error && (
-                  <p className="text-xs text-charlotte-red mt-1">{sync.error}</p>
+                  <p className="text-xs text-charlotte-red mt-1 line-clamp-2">{sync.error}</p>
                 )}
               </div>
             ))}
@@ -329,7 +334,7 @@ export default function Admin() {
                 <tbody>
                   {syncLogs.map(log => (
                     <tr key={log.id} className="border-b border-gray-50 hover:bg-gray-50">
-                      <td className="px-4 py-3 text-charlotte-black">{log.type}</td>
+                      <td className="px-4 py-3 text-charlotte-black">{log.sync_type}</td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                           log.status === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
@@ -337,12 +342,12 @@ export default function Admin() {
                           {log.status}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-gray-600">{log.recordsProcessed}</td>
+                      <td className="px-4 py-3 text-gray-600">{log.records_processed}</td>
                       <td className="px-4 py-3">
-                        {log.error ? <span className="text-charlotte-red text-xs">{log.error}</span> : <span className="text-gray-300">--</span>}
+                        {log.error_message ? <span className="text-charlotte-red text-xs line-clamp-1">{log.error_message}</span> : <span className="text-gray-300">--</span>}
                       </td>
                       <td className="px-4 py-3 text-gray-600">
-                        {new Date(log.timestamp).toLocaleString('en-US', {
+                        {new Date(log.completed_at).toLocaleString('en-US', {
                           month: 'short',
                           day: 'numeric',
                           hour: '2-digit',
