@@ -6,7 +6,10 @@ import EmptyState from '../components/EmptyState'
 // D1 stores timestamps without Z suffix — append it so JS treats as UTC
 function utc(ts: string | undefined | null): string {
   if (!ts) return ''
-  return ts.endsWith('Z') || ts.includes('+') ? ts : ts + 'Z'
+  // D1 stores "2026-03-22 16:55:55" — normalize to ISO 8601 UTC
+  let s = ts.replace(' ', 'T')
+  if (!s.endsWith('Z') && !s.includes('+')) s += 'Z'
+  return s
 }
 
 function formatEST(ts: string | undefined | null): string {
