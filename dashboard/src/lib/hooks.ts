@@ -11,8 +11,9 @@ export type UtilizationHourly = { hour: number; day: number; count: number }
 export type UtilizationDaily = { date: string; count: number }
 export type UtilizationStatsResponse = {
   top_stations: UtilizationTopStation[]
-  hourly: UtilizationHourly[]
-  daily_sessions: UtilizationDaily[]
+  bottom_stations: UtilizationTopStation[]
+  session_trends: { date: string; sessions: number; kwh: number }[]
+  hourly_heatmap: UtilizationHourly[]
 }
 
 export type StationFilters = {
