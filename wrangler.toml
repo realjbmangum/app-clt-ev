@@ -14,7 +14,5 @@ database_id = "0a6d6c8f-7705-4f34-a8ee-65d480cd790b"
 binding = "R2"
 bucket_name = "clt-ev-archive"
 
-# Crons disabled — ChargePoint's Cloudflare blocks Workers IPs (403)
-# Use manual sync buttons on Admin page or POST /api/sync/* endpoints
-# [triggers]
-# crons = ["*/30 * * * *", "0 * * * *", "0 6 * * *"]
+[triggers]
+crons = ["*/30 * * * *", "0 */2 * * *", "0 6 * * *"]
