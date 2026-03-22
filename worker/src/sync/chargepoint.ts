@@ -157,6 +157,69 @@ export class ChargePointClient {
     }));
   }
 
+  async getStations(): Promise<{
+    stationId: string;
+    stationName: string;
+    address: string;
+    city: string;
+    state: string;
+    postalCode: string;
+    lat: number;
+    lng: number;
+    orgName: string;
+    orgId: string;
+    level: string;
+    connector: string;
+    voltage: string;
+    current: string;
+    power: string;
+    numPorts: number;
+    manufacturer: string;
+    model: string;
+    serialNum: string;
+    macAddr: string;
+    description: string;
+    activationDate: string;
+  }[]> {
+    const body = `<tns:getStations>
+      <tns:searchQuery></tns:searchQuery>
+    </tns:getStations>`;
+
+    const xml = await this.soapRequest('getStations', body);
+    const stations = getAllElements(xml, 'stationData');
+
+    return stations.map(s => {
+      // Get first port's details
+      const ports = getAllElements(s, 'Port');
+      const firstPort = ports[0] || '';
+
+      return {
+        stationId: getTagValue(s, 'stationID') || '',
+        stationName: getTagValue(firstPort, 'stationName') || getTagValue(s, 'stationName') || '',
+        address: getTagValue(s, 'Address') || '',
+        city: getTagValue(s, 'City') || '',
+        state: getTagValue(s, 'State') || '',
+        postalCode: getTagValue(s, 'postalCode') || '',
+        lat: parseFloat(getTagValue(firstPort, 'Lat') || getTagValue(s, 'Lat') || '0'),
+        lng: parseFloat(getTagValue(firstPort, 'Long') || getTagValue(s, 'Long') || '0'),
+        orgName: getTagValue(s, 'organizationName') || '',
+        orgId: getTagValue(s, 'orgID') || '',
+        level: getTagValue(firstPort, 'Level') || '',
+        connector: getTagValue(firstPort, 'Connector') || '',
+        voltage: getTagValue(firstPort, 'Voltage') || '',
+        current: getTagValue(firstPort, 'Current') || '',
+        power: getTagValue(firstPort, 'Power') || '',
+        numPorts: parseInt(getTagValue(s, 'numPorts') || '1'),
+        manufacturer: getTagValue(s, 'stationManufacturer') || '',
+        model: getTagValue(s, 'stationModel') || '',
+        serialNum: getTagValue(s, 'stationSerialNum') || '',
+        macAddr: getTagValue(s, 'stationMacAddr') || '',
+        description: getTagValue(firstPort, 'Description') || '',
+        activationDate: getTagValue(s, 'stationActivationDate') || '',
+      };
+    });
+  }
+
   async getTransactionData(params?: {
     startTime?: string;
     endTime?: string;

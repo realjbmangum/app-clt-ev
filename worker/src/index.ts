@@ -84,6 +84,62 @@ app.post('/api/sync/map-ids', async (c) => {
   const result = await mapStationIds(c.env);
   return c.json(result);
 });
+// Full re-import: drop all stations, pull everything from ChargePoint API
+app.post('/api/sync/reimport', async (c) => {
+  const { ChargePointClient } = await import('./sync/chargepoint');
+  const client = new ChargePointClient(c.env);
+
+  // Get all stations from API
+  const apiStations = await client.getStations();
+  if (!apiStations.length) return c.json({ error: 'No stations returned from API' }, 500);
+
+  // Get statuses too
+  const apiStatuses = await client.getStationStatus();
+  const statusMap = new Map<string, string>();
+  for (const s of apiStatuses) {
+    // Normalize: INUSE -> OCCUPIED, etc.
+    const status = s.status.toUpperCase();
+    const normalized = status === 'INUSE' || status === 'IN USE' ? 'OCCUPIED'
+      : status === 'AVAILABLE' ? 'AVAILABLE'
+      : status === 'FAULTED' || status === 'FAULT' ? 'FAULTED'
+      : 'UNREACHABLE';
+    statusMap.set(s.stationId, normalized);
+  }
+
+  // Clear existing stations
+  await c.env.DB.prepare('DELETE FROM stations').run();
+
+  // Insert all from API
+  let inserted = 0;
+  for (const s of apiStations) {
+    const isPublic = !s.description?.toLowerCase().includes('fleet') &&
+      !s.orgName?.toLowerCase().includes('water') ? 1 : 0;
+    const status = statusMap.get(s.stationId) || 'UNREACHABLE';
+    const powerType = s.level === 'DC' ? 'DC' : 'AC_1_PHASE';
+
+    await c.env.DB.prepare(`
+      INSERT INTO stations (
+        charger_id, chargepoint_station_id, evse_name, station_address, station_city,
+        station_state, station_zip, station_lat, station_lng, org_name,
+        power_type, connector_format, is_public, station_status,
+        mac_address, system_serial, warranty_type, country, country_code
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      s.stationId, s.stationId, s.stationName.trim(), s.address.trim(), s.city.trim(),
+      s.state.trim(), s.postalCode.trim(), s.lat, s.lng, s.orgName.trim(),
+      powerType, s.connector, isPublic, status,
+      s.macAddr, s.serialNum, '', 'United States', 'US'
+    ).run();
+    inserted++;
+  }
+
+  await c.env.DB.prepare(`
+    INSERT INTO sync_logs (sync_type, status, records_processed, started_at)
+    VALUES ('full_reimport', 'success', ?, ?)
+  `).bind(inserted, new Date().toISOString()).run();
+
+  return c.json({ reimported: inserted, statuses: statusMap.size });
+});
 app.post('/api/sync/energy', async (c) => {
   await aggregateEnergyReadings(c.env);
   return c.json({ triggered: 'energy_aggregation' });
