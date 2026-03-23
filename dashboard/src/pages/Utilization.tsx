@@ -34,8 +34,8 @@ export default function Utilization() {
     .reverse()
 
   const stationRankings = showTop
-    ? (data?.top_stations || []).map((s: any) => ({ name: s.station_charger_id, sessions: s.session_count }))
-    : (data?.bottom_stations || []).map((s: any) => ({ name: s.station_charger_id, sessions: s.session_count }))
+    ? (data?.top_stations || []).map((s: any) => ({ name: s.station_name || s.station_charger_id, sessions: s.session_count, id: s.station_charger_id }))
+    : (data?.bottom_stations || []).map((s: any) => ({ name: s.station_name || s.station_charger_id, sessions: s.session_count, id: s.station_charger_id }))
 
   const heatmap = data?.hourly_heatmap || []
   const maxHeat = Math.max(...heatmap.map((h: any) => h.count), 1)

@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
-import { useStations, useStats, type StationFilters } from '../lib/hooks'
+import { useStations, useStats, useUtilizationStats, type StationFilters } from '../lib/hooks'
 import type { Station } from '../lib/mock-data'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
@@ -64,10 +64,23 @@ export default function MapView() {
     power_type: '',
   })
 
+  const [utilizationFilter, setUtilizationFilter] = useState<'' | 'top20' | 'bottom20'>('')
+
   const token = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined
 
-  const { stations } = useStations(filters)
+  const { stations: allStations } = useStations(filters)
   const { stats } = useStats()
+  const { data: utilData } = useUtilizationStats()
+
+  // Apply utilization filter
+  const stations = useMemo(() => {
+    if (!utilizationFilter || !utilData) return allStations
+    const ids = new Set(
+      (utilizationFilter === 'top20' ? utilData.top_stations : utilData.bottom_stations)
+        .map((s: any) => s.station_charger_id)
+    )
+    return allStations.filter(s => ids.has(s.charger_id))
+  }, [allStations, utilizationFilter, utilData])
 
   function toggleStatus(status: string) {
     setFilters(prev => {
@@ -302,6 +315,20 @@ export default function MapView() {
               <option value="AC_1_PHASE">AC 1-Phase</option>
               <option value="AC_3_PHASE">AC 3-Phase</option>
               <option value="DC">DC Fast</option>
+            </select>
+          </div>
+
+          {/* Utilization */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">Utilization</label>
+            <select
+              value={utilizationFilter}
+              onChange={e => setUtilizationFilter(e.target.value as '' | 'top20' | 'bottom20')}
+              className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-charlotte-green-dark"
+            >
+              <option value="">All Stations</option>
+              <option value="top20">Top 20 (Most Used)</option>
+              <option value="bottom20">Bottom 20 (Least Used)</option>
             </select>
           </div>
         </div>

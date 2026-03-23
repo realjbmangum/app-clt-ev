@@ -195,12 +195,14 @@ export async function getAggregateStats(db: D1Database) {
 export async function getUtilizationStats(db: D1Database) {
   const [topStations, bottomStations, sessionTrends] = await Promise.all([
     db.prepare(
-      `SELECT station_charger_id, COUNT(*) as session_count, SUM(energy_kwh) as total_kwh
-       FROM sessions GROUP BY station_charger_id ORDER BY session_count DESC LIMIT 10`
+      `SELECT s.station_charger_id, st.evse_name as station_name, COUNT(*) as session_count, SUM(s.energy_kwh) as total_kwh
+       FROM sessions s LEFT JOIN stations st ON s.station_charger_id = st.charger_id
+       GROUP BY s.station_charger_id ORDER BY session_count DESC LIMIT 20`
     ).all(),
     db.prepare(
-      `SELECT station_charger_id, COUNT(*) as session_count, SUM(energy_kwh) as total_kwh
-       FROM sessions GROUP BY station_charger_id ORDER BY session_count ASC LIMIT 10`
+      `SELECT s.station_charger_id, st.evse_name as station_name, COUNT(*) as session_count, SUM(s.energy_kwh) as total_kwh
+       FROM sessions s LEFT JOIN stations st ON s.station_charger_id = st.charger_id
+       GROUP BY s.station_charger_id ORDER BY session_count ASC LIMIT 20`
     ).all(),
     db.prepare(
       `SELECT DATE(start_time) as date, COUNT(*) as sessions, SUM(energy_kwh) as kwh
