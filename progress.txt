@@ -1,0 +1,74 @@
+## Session — March 20-23, 2026
+
+**Project:** CLT EV Charging Analytics Dashboard
+**Client:** City of Charlotte (B2G, T&M)
+**Repo:** github.com/realjbmangum/app-clt-ev
+
+**Completed:**
+- PRD created with full requirements, 7 user stories, 4 roles
+- Full prototype built: React SPA (Vite) + Cloudflare Workers (Hono) + D1 + R2
+- ChargePoint SOAP/XML API v5.0 integration — live data flowing
+- 208 stations reimported from ChargePoint API (replaced CSV seed)
+- 55+ real charging sessions synced, 1100+ kWh tracked
+- Station status syncing every 30 min, sessions every 2 hours, energy daily
+- City of Charlotte brand compliance (crown logo, greens, Proxima Nova)
+
+**Pages Built:**
+- Map View — Mapbox GL JS with clustering, status colors, filters, style switcher
+- Station List — KPIs, clickable pie chart, sortable table, detail panel
+- Utilization — sessions over time, top/bottom 20, heatmap, energy chart
+- Cost & Energy — kWh/cost charts, org breakdown, Duke Energy rate comparison modal
+- Executive Summary — KPIs, org/status/public pies, period comparison, PDF report mockup
+- Forecast — projected usage, status distribution, expansion recommendations
+- Maintenance — live FAULTED/UNREACHABLE stations + ticket tracking
+- Admin — user management, sync health with Sync Now buttons, real sync logs
+- Public Map — no-login charger availability for residents (/public)
+- Login — Charlotte skyline background, crown logo, demo credentials
+
+**Infrastructure:**
+- Cloudflare Pages (frontend)
+- Cloudflare Workers (API + cron sync)
+- Cloudflare D1: 7 tables (stations, sessions, energy_readings, maintenance_logs, users, sync_logs, station_status_history)
+- Cloudflare R2: raw ChargePoint XML response archiving
+- Worker secrets: CHARGEPOINT_API_KEY, CHARGEPOINT_API_PASSWORD, JWT_SECRET
+
+**Documents Created:**
+- docs/technical-architecture.md — 851-line CTO/IT architecture & security doc
+- docs/demo-email-pete.md — demo email with login credentials + feedback template
+- prd.md — full product requirements document
+
+**Files Changed:**
+- 50+ source files across dashboard/src, worker/src, data/, docs/
+- All mock data removed — 100% live API data
+- Types moved to lib/types.ts, mock-data.ts and mock-analytics.ts deleted
+
+**Decisions:**
+- React SPA instead of Astro (dashboard interactivity needs)
+- Mapbox GL JS for maps (client preference, not Leaflet)
+- ChargePoint SOAP/XML not REST (their API is SOAP v5.0)
+- Demo login bypasses API auth (CORS issue with cross-origin JWT)
+- Crons intermittently 403'd by ChargePoint's Cloudflare — Sync Now buttons as backup
+- Station IDs remapped from CSV EVSE IDs to ChargePoint stationIDs via name matching
+
+**Known Issues:**
+- Cron syncs intermittently blocked by ChargePoint's Cloudflare (403) — manual Sync Now buttons work reliably
+- Mapbox token must be plain text env var in Pages (not encrypted)
+- VITE_API_URL must be plain text in Pages env vars
+- Demo login is client-side only — real JWT auth built but CORS blocks cross-origin login
+- 10 stations couldn't be name-matched initially, resolved by full reimport from API
+
+**Next Steps:**
+- [ ] Fix cron reliability (Fly.io proxy or ChargePoint support ticket to whitelist)
+- [ ] Wire real JWT auth (fix CORS or use Cloudflare Access)
+- [ ] Add executive chart click-through (pie slice → filtered stations page)
+- [ ] Logout visibility improvement
+- [ ] Pete demo review and feedback collection
+- [ ] Technical architecture doc delivery to CTO/IT
+- [ ] Phase 2: Cloudflare Access SSO, Duke Energy rates, PDF reports, email alerts
+
+**Gotchas:**
+- ChargePoint API is SOAP/XML, not REST — documentation is sparse PDFs
+- ChargePoint's Cloudflare blocks Cloudflare Workers IPs intermittently (not permanently)
+- D1 timestamps stored without Z suffix — must normalize for EST display
+- ChargePoint station IDs (1:17387271) don't match CSV charger IDs (5405) — need name-based mapping
+- Vite env vars must be plain text in Cloudflare Pages, not encrypted secrets
