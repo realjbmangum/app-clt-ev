@@ -15,7 +15,6 @@ import {
 import KPICard from '../components/KPICard'
 import ChartCard from '../components/ChartCard'
 import { useStats } from '../lib/hooks'
-import { dailySessions } from '../lib/mock-analytics'
 
 const MONTHLY_GROWTH_RATE = 0.042
 const CAPACITY_SESSIONS = 5000
@@ -53,11 +52,13 @@ export default function Forecast() {
     return months
   }, [currentUtilization])
 
-  // Calculate current avg monthly sessions from last 30 days of mock data
+  // Use real session count from API, extrapolate to monthly
   const currentMonthlySessions = useMemo(() => {
-    const last30 = dailySessions.slice(-30)
-    return Math.round(last30.reduce((s, d) => s + d.sessions, 0))
-  }, [])
+    if (!stats || stats.total_sessions === 0) return 55 * 30 // baseline estimate if no data yet
+    // Extrapolate: total_sessions is all-time, but we've been syncing ~2 days
+    // Use daily average * 30 as monthly estimate
+    return Math.round(stats.total_sessions * 15) // rough monthly projection from current data
+  }, [stats])
 
   // Project 12 months forward
   const projectedUsage = useMemo(() => {

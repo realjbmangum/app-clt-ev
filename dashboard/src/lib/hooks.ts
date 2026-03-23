@@ -133,8 +133,22 @@ export function useEnergyStats(dateRange?: string) {
 
   useEffect(() => {
     const params = dateRange ? `?range=${dateRange}` : ''
-    api.get<EnergyStatsResponse>(`/api/stats/energy${params}`)
-      .then(setData)
+    api.get<any>(`/api/stats/energy${params}`)
+      .then(raw => {
+        // Normalize API field names
+        const timeline = (raw.timeline || []).map((t: any) => ({
+          date: t.reading_date || t.date,
+          kwh: t.kwh || t.total_kwh || 0,
+          cost: t.cost || t.total_cost || 0,
+        }))
+        const by_org = (raw.by_org || []).map((o: any) => ({
+          org_name: o.org_name || '',
+          total_kwh: o.kwh || o.total_kwh || 0,
+          total_cost: o.cost || o.total_cost || 0,
+          session_count: o.sessions || o.session_count || 0,
+        }))
+        setData({ timeline, by_org })
+      })
       .catch((err) => {
         setData(null)
         setError(err instanceof Error ? err.message : 'Failed to fetch energy stats')
