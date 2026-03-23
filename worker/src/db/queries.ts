@@ -264,6 +264,146 @@ export async function getEnergyStats(db: D1Database, filters?: {
   };
 }
 
+// --- Usage Stats (Pete Dashboard) ---
+
+export async function getUsageStats(db: D1Database, filters: {
+  granularity?: string;
+  start_date?: string;
+  end_date?: string;
+  location?: string;
+  station_id?: string;
+}) {
+  const granularity = filters.granularity || 'daily';
+  const endDate = filters.end_date || new Date().toISOString().slice(0, 10);
+  const startDate = filters.start_date || (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 90);
+    return d.toISOString().slice(0, 10);
+  })();
+
+  let periodExpr: string;
+  switch (granularity) {
+    case 'weekly':
+      periodExpr = "strftime('%Y-W%W', s.start_time)";
+      break;
+    case 'monthly':
+      periodExpr = "strftime('%Y-%m', s.start_time)";
+      break;
+    case 'quarterly':
+      periodExpr = "strftime('%Y', s.start_time) || '-Q' || ((CAST(strftime('%m', s.start_time) AS INTEGER) - 1) / 3 + 1)";
+      break;
+    default:
+      periodExpr = "DATE(s.start_time)";
+  }
+
+  let whereClause = 's.start_time >= ? AND s.start_time <= ?';
+  const params: (string | number)[] = [startDate, endDate + 'T23:59:59'];
+
+  if (filters.station_id) {
+    whereClause += ' AND s.station_charger_id = ?';
+    params.push(filters.station_id);
+  }
+
+  const query = `
+    SELECT
+      s.station_charger_id,
+      st.evse_name as station_name,
+      st.station_address as address,
+      ${periodExpr} as period,
+      SUM(s.energy_kwh) as kwh,
+      COUNT(*) as sessions,
+      SUM(s.cost_usd) as cost
+    FROM sessions s
+    LEFT JOIN stations st ON s.station_charger_id = st.charger_id
+    WHERE ${whereClause}
+    GROUP BY period, s.station_charger_id
+    ORDER BY period DESC, kwh DESC
+  `;
+
+  const result = await db.prepare(query).bind(...params).all();
+  const rows = result?.results || [];
+
+  // Parse location from station name
+  function parseLocation(name: string | null): string {
+    if (!name) return 'Unknown';
+    const parts = name.split(' / ');
+    const loc = parts.length >= 2 ? parts[parts.length - 1] : name;
+    return loc.replace(/\s*[-]?\d+$/, '').replace(/\.\s*/g, ' ').trim();
+  }
+
+  // Filter by location if specified
+  const filteredRows = filters.location
+    ? rows.filter((r: any) => parseLocation(r.station_name) === filters.location)
+    : rows;
+
+  // Build by-location aggregation
+  const locationMap = new Map<string, {
+    location: string;
+    address: string;
+    stations: Set<string>;
+    total_kwh: number;
+    total_sessions: number;
+    total_cost: number;
+  }>();
+
+  for (const row of filteredRows as any[]) {
+    const loc = parseLocation(row.station_name);
+    if (!locationMap.has(loc)) {
+      locationMap.set(loc, {
+        location: loc,
+        address: row.address || '',
+        stations: new Set(),
+        total_kwh: 0,
+        total_sessions: 0,
+        total_cost: 0,
+      });
+    }
+    const entry = locationMap.get(loc)!;
+    entry.stations.add(row.station_charger_id);
+    entry.total_kwh += Number(row.kwh) || 0;
+    entry.total_sessions += Number(row.sessions) || 0;
+    entry.total_cost += Number(row.cost) || 0;
+  }
+
+  const byLocation = Array.from(locationMap.values())
+    .map(l => ({
+      location: l.location,
+      address: l.address,
+      station_count: l.stations.size,
+      total_kwh: Math.round(l.total_kwh * 100) / 100,
+      total_sessions: l.total_sessions,
+      total_cost: Math.round(l.total_cost * 100) / 100,
+    }))
+    .sort((a, b) => b.total_kwh - a.total_kwh);
+
+  // Compute totals
+  let totalKwh = 0, totalSessions = 0, totalCost = 0;
+  for (const row of filteredRows as any[]) {
+    totalKwh += Number(row.kwh) || 0;
+    totalSessions += Number(row.sessions) || 0;
+    totalCost += Number(row.cost) || 0;
+  }
+
+  return {
+    usage: (filteredRows as any[]).map(r => ({
+      period: r.period,
+      station_id: r.station_charger_id,
+      station_name: r.station_name || '',
+      location: parseLocation(r.station_name),
+      address: r.address || '',
+      kwh: Math.round((Number(r.kwh) || 0) * 100) / 100,
+      sessions: Number(r.sessions) || 0,
+      cost: Math.round((Number(r.cost) || 0) * 100) / 100,
+    })),
+    by_location: byLocation,
+    totals: {
+      total_kwh: Math.round(totalKwh * 100) / 100,
+      total_sessions: totalSessions,
+      total_cost: Math.round(totalCost * 100) / 100,
+    },
+  };
+}
+
 // --- Users ---
 
 export async function getUserByEmail(db: D1Database, email: string) {

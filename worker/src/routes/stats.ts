@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import type { Env } from '../types';
-import { getAggregateStats, getUtilizationStats, getEnergyStats } from '../db/queries';
+import { getAggregateStats, getUtilizationStats, getEnergyStats, getUsageStats } from '../db/queries';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -21,6 +21,17 @@ app.get('/energy', async (c) => {
   const start_date = c.req.query('start_date');
   const end_date = c.req.query('end_date');
   const stats = await getEnergyStats(c.env.DB, { start_date, end_date });
+  return c.json(stats);
+});
+
+// GET /api/stats/usage - kWh usage by station and location (Pete dashboard)
+app.get('/usage', async (c) => {
+  const granularity = c.req.query('granularity');
+  const start_date = c.req.query('start_date');
+  const end_date = c.req.query('end_date');
+  const location = c.req.query('location');
+  const station_id = c.req.query('station_id');
+  const stats = await getUsageStats(c.env.DB, { granularity, start_date, end_date, location, station_id });
   return c.json(stats);
 });
 

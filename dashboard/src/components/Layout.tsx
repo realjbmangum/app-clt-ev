@@ -13,6 +13,7 @@ import {
   Menu,
   X,
   Wrench,
+  BarChart2,
 } from 'lucide-react'
 
 const NAV_SECTIONS = [
@@ -48,6 +49,13 @@ const NAV_SECTIONS = [
     ],
   },
   {
+    label: 'Pete',
+    roles: ['admin'] as const,
+    items: [
+      { to: '/pete', label: 'Usage Analytics', icon: BarChart2 },
+    ],
+  },
+  {
     label: 'Admin',
     roles: ['admin'] as const,
     items: [
@@ -65,6 +73,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/forecast': 'Forecast & Planning',
   '/maintenance': 'Maintenance',
   '/admin': 'Admin',
+  '/pete': 'Usage Analytics',
 }
 
 const ROLE_COLORS: Record<string, string> = {

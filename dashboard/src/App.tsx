@@ -8,6 +8,7 @@ import Executive from './pages/Executive'
 import Forecast from './pages/Forecast'
 import Maintenance from './pages/Maintenance'
 import Admin from './pages/Admin'
+import PeteDashboard from './pages/PeteDashboard'
 import Login from './pages/Login'
 import PublicMap from './pages/PublicMap'
 import { AuthProvider, useAuth } from './lib/auth'
@@ -27,6 +28,7 @@ function ProtectedRoutes() {
         <Route path="/executive" element={<Executive />} />
         <Route path="/forecast" element={<Forecast />} />
         <Route path="/maintenance" element={<Maintenance />} />
+        <Route path="/pete" element={<PeteDashboard />} />
         <Route path="/admin" element={<Admin />} />
       </Routes>
     </Layout>
