@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { api } from '../lib/api'
 import { useStations, useStats } from '../lib/hooks'
-import type { Station } from '../lib/mock-data'
+import type { Station } from '../lib/types'
 import { AlertTriangle, Clock, CheckCircle2, Wrench, Plus, X, Radio } from 'lucide-react'
 
 type MaintenanceLog = {

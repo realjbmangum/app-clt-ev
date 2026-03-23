@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { api } from './api'
-import type { Station, Session, StatsResponse } from './mock-data'
+import type { Station, Session, StatsResponse } from './types'
 
 export type EnergyTimelineEntry = { date: string; kwh: number; cost: number }
 export type EnergyByOrg = { org_name: string; total_kwh: number; total_cost: number; session_count: number }

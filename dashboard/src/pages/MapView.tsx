@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { useStations, useStats, useUtilizationStats, type StationFilters } from '../lib/hooks'
-import type { Station } from '../lib/mock-data'
+import type { Station } from '../lib/types'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 const STATUS_COLORS: Record<string, string> = {

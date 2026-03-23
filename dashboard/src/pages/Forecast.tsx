@@ -14,28 +14,21 @@ import {
 } from 'recharts'
 import KPICard from '../components/KPICard'
 import ChartCard from '../components/ChartCard'
-import { useStats } from '../lib/hooks'
+import { useStats, useStations } from '../lib/hooks'
 
 const MONTHLY_GROWTH_RATE = 0.042
 const CAPACITY_SESSIONS = 5000
 
-const UTILIZATION_BANDS = [
-  { band: '0-25%', stations: 90, fill: '#A7D88C' },
-  { band: '25-50%', stations: 65, fill: '#71BF44' },
-  { band: '50-75%', stations: 38, fill: '#24824A' },
-  { band: '75-100%', stations: 15, fill: '#0C5C2A' },
-]
-
-const EXPANSION_ROWS = [
-  { area: 'Uptown / Center City', stations: 45, utilization: 72, recommendation: 'Monitor — approaching capacity' },
-  { area: 'South End / Dilworth', stations: 32, utilization: 68, recommendation: 'Plan expansion — high growth area' },
-  { area: 'University City / NoDa', stations: 28, utilization: 45, recommendation: 'Adequate for current demand' },
-  { area: 'Airport', stations: 20, utilization: 55, recommendation: 'Consider adding DC fast chargers' },
-  { area: 'Huntersville / North', stations: 12, utilization: 38, recommendation: 'Adequate — low priority' },
-]
+const STATUS_COLORS: Record<string, string> = {
+  Available: '#71BF44',
+  Occupied: '#2F70B8',
+  Unreachable: '#EA983E',
+  Faulted: '#DE0505',
+}
 
 export default function Forecast() {
   const { stats } = useStats()
+  const { stations } = useStations()
 
   const currentUtilization = useMemo(() => {
     if (!stats) return 0
@@ -44,7 +37,6 @@ export default function Forecast() {
 
   const monthsTo80 = useMemo(() => {
     if (currentUtilization >= 80) return 0
-    // months = ln(target/current) / ln(1 + growth)
     const target = 80
     const months = Math.ceil(
       Math.log(target / Math.max(currentUtilization, 0.1)) / Math.log(1 + MONTHLY_GROWTH_RATE)
@@ -55,8 +47,6 @@ export default function Forecast() {
   // Use real session count from API, extrapolate to monthly
   const currentMonthlySessions = useMemo(() => {
     if (!stats || stats.total_sessions === 0) return 55 * 30 // baseline estimate if no data yet
-    // Extrapolate: total_sessions is all-time, but we've been syncing ~2 days
-    // Use daily average * 30 as monthly estimate
     return Math.round(stats.total_sessions * 15) // rough monthly projection from current data
   }, [stats])
 
@@ -70,6 +60,39 @@ export default function Forecast() {
       return { month: label, projected, capacity: CAPACITY_SESSIONS }
     })
   }, [currentMonthlySessions])
+
+  // Station Status Distribution - computed from real stats
+  const statusDistribution = useMemo(() => {
+    if (!stats) return []
+    return [
+      { status: 'Available', count: stats.available, fill: STATUS_COLORS.Available },
+      { status: 'Occupied', count: stats.occupied, fill: STATUS_COLORS.Occupied },
+      { status: 'Unreachable', count: stats.unreachable, fill: STATUS_COLORS.Unreachable },
+      { status: 'Faulted', count: stats.faulted, fill: STATUS_COLORS.Faulted },
+    ]
+  }, [stats])
+
+  // Expansion table: group stations by org_name, compute utilization per group
+  const expansionRows = useMemo(() => {
+    if (stations.length === 0) return []
+    const groups = new Map<string, { total: number; occupied: number }>()
+    for (const s of stations) {
+      const org = s.org_name?.trim() || 'Unknown'
+      const prev = groups.get(org) || { total: 0, occupied: 0 }
+      prev.total++
+      if (s.station_status === 'OCCUPIED') prev.occupied++
+      groups.set(org, prev)
+    }
+    return Array.from(groups, ([org, g]) => {
+      const utilization = g.total > 0 ? Math.round((g.occupied / g.total) * 100) : 0
+      let recommendation = 'Adequate for current demand'
+      if (utilization >= 70) recommendation = 'Monitor — approaching capacity'
+      else if (utilization >= 50) recommendation = 'Plan expansion — high growth area'
+      return { area: org, stations: g.total, occupied: g.occupied, utilization, recommendation }
+    }).sort((a, b) => b.utilization - a.utilization)
+  }, [stations])
+
+  const occupiedCount = stats?.occupied ?? 0
 
   return (
     <div className="space-y-6">
@@ -89,9 +112,9 @@ export default function Forecast() {
           value={monthsTo80}
         />
         <KPICard
-          label="Stations Needing Expansion"
-          value={15}
-          trend={{ direction: 'up', value: '>75% utilization' }}
+          label="Currently Occupied"
+          value={occupiedCount}
+          trend={{ direction: 'up', value: 'stations in use' }}
         />
       </div>
 
@@ -125,17 +148,17 @@ export default function Forecast() {
           </div>
         </ChartCard>
 
-        {/* Utilization Bands */}
-        <ChartCard title="Stations by Utilization Band" subtitle="Distribution across 208 stations">
+        {/* Station Status Distribution */}
+        <ChartCard title="Station Status Distribution" subtitle={`Across ${stats?.total ?? 0} stations`}>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={UTILIZATION_BANDS}>
+              <BarChart data={statusDistribution}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                <XAxis dataKey="band" tick={{ fontSize: 12 }} />
+                <XAxis dataKey="status" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip />
-                <Bar dataKey="stations" name="Stations" radius={[4, 4, 0, 0]}>
-                  {UTILIZATION_BANDS.map((entry, i) => (
+                <Bar dataKey="count" name="Stations" radius={[4, 4, 0, 0]}>
+                  {statusDistribution.map((entry, i) => (
                     <Cell key={i} fill={entry.fill} />
                   ))}
                 </Bar>
@@ -146,22 +169,24 @@ export default function Forecast() {
       </div>
 
       {/* Expansion Recommendations Table */}
-      <ChartCard title="Expansion Recommendations" subtitle="Based on current utilization and growth trends">
+      <ChartCard title="Expansion Recommendations" subtitle="Based on current station utilization by org unit">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-200">
-                <th className="text-left py-3 px-4 font-semibold text-gray-600">Area</th>
+                <th className="text-left py-3 px-4 font-semibold text-gray-600">Org Unit</th>
                 <th className="text-right py-3 px-4 font-semibold text-gray-600">Stations</th>
+                <th className="text-right py-3 px-4 font-semibold text-gray-600">Occupied</th>
                 <th className="text-right py-3 px-4 font-semibold text-gray-600">Utilization %</th>
                 <th className="text-left py-3 px-4 font-semibold text-gray-600">Recommendation</th>
               </tr>
             </thead>
             <tbody>
-              {EXPANSION_ROWS.map((row) => (
+              {expansionRows.map((row) => (
                 <tr key={row.area} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 px-4 font-medium text-charlotte-black">{row.area}</td>
                   <td className="py-3 px-4 text-right">{row.stations}</td>
+                  <td className="py-3 px-4 text-right">{row.occupied}</td>
                   <td className="py-3 px-4 text-right">
                     <span className={`inline-flex items-center gap-1.5 ${
                       row.utilization >= 70 ? 'text-charlotte-orange' :

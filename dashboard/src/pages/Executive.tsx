@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   ResponsiveContainer,
   PieChart,
@@ -18,6 +18,8 @@ const STATUS_COLORS: Record<string, string> = {
   FAULTED: '#DE0505',
 }
 
+const ORG_COLORS = ['#24824A', '#2F70B8', '#0A7D8C', '#EA983E', '#7C3AED', '#DE0505']
+
 export default function Executive() {
   const { stats } = useStats()
   const { stations } = useStations()
@@ -33,11 +35,17 @@ export default function Executive() {
   const totalKwh = stats?.total_kwh ?? 0
   const totalCost = stats?.total_cost ?? 0
 
-  const stationDistribution = [
-    { name: 'City of Charlotte', value: Math.max(0, totalStations - 20 - 10), color: '#24824A' },
-    { name: 'CLT Airport', value: 20, color: '#2F70B8' },
-    { name: 'Water Services', value: 10, color: '#0A7D8C' },
-  ]
+  // Compute org distribution dynamically from station data
+  const stationDistribution = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const s of stations) {
+      const org = s.org_name?.trim() || 'Unknown'
+      map.set(org, (map.get(org) || 0) + 1)
+    }
+    return Array.from(map, ([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .map((entry, i) => ({ ...entry, color: ORG_COLORS[i % ORG_COLORS.length] }))
+  }, [stations])
 
   const statusDistribution = [
     { name: 'Available', value: available, color: STATUS_COLORS.AVAILABLE },
@@ -46,12 +54,12 @@ export default function Executive() {
     { name: 'Faulted', value: faulted, color: STATUS_COLORS.FAULTED },
   ]
 
-  // Public vs Private from real station data
+  // Public vs Private computed from real station data
   const publicCount = stations.filter(s => s.is_public).length
-  const privateCount = stations.filter(s => !s.is_public).length
+  const privateCount = stations.length - publicCount
   const publicPrivateDistribution = [
-    { name: 'Public', value: publicCount || 77, color: '#24824A' },
-    { name: 'Private', value: privateCount || 131, color: '#2F70B8' },
+    { name: 'Public', value: publicCount, color: '#24824A' },
+    { name: 'Private', value: privateCount, color: '#2F70B8' },
   ]
 
   const now = new Date()

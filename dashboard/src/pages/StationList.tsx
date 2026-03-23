@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import StatusBadge from '../components/StatusBadge'
 import { useStations, useSessions, useStats, type StationFilters } from '../lib/hooks'
-import type { Station } from '../lib/mock-data'
+import type { Station } from '../lib/types'
 
 const STATUS_COLORS: Record<string, string> = {
   AVAILABLE: '#71BF44',
