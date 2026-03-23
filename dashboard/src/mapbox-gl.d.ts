@@ -11,6 +11,8 @@ declare module 'mapbox-gl' {
       addLayer(layer: any): this
       getSource(id: string): any
       getCanvas(): HTMLCanvasElement
+      queryRenderedFeatures(point: any, options?: any): any[]
+      easeTo(options: any): this
       on(type: string, layerOrCallback: any, callback?: any): this
       once(type: string, callback: any): this
       setStyle(style: string): this

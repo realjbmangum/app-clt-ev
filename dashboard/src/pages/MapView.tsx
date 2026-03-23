@@ -113,12 +113,47 @@ export default function MapView() {
       map.addSource(SOURCE_ID, {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
+        cluster: true,
+        clusterMaxZoom: 14,
+        clusterRadius: 50,
       })
 
+      // Cluster circles
+      map.addLayer({
+        id: 'clusters',
+        type: 'circle',
+        source: SOURCE_ID,
+        filter: ['has', 'point_count'],
+        paint: {
+          'circle-color': '#24824A',
+          'circle-radius': ['step', ['get', 'point_count'], 18, 5, 24, 15, 30, 30, 36],
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': 2,
+          'circle-opacity': 0.85,
+        },
+      })
+
+      // Cluster count labels
+      map.addLayer({
+        id: 'cluster-count',
+        type: 'symbol',
+        source: SOURCE_ID,
+        filter: ['has', 'point_count'],
+        layout: {
+          'text-field': ['get', 'point_count_abbreviated'],
+          'text-size': 13,
+        },
+        paint: {
+          'text-color': '#ffffff',
+        },
+      })
+
+      // Individual station dots (unclustered)
       map.addLayer({
         id: LAYER_ID,
         type: 'circle',
         source: SOURCE_ID,
+        filter: ['!', ['has', 'point_count']],
         paint: {
           'circle-radius': 7,
           'circle-color': ['get', 'color'],
@@ -131,6 +166,22 @@ export default function MapView() {
       setMapLoaded(true)
     })
 
+    // Click cluster to zoom in
+    map.on('click', 'clusters', (e: mapboxgl.MapLayerMouseEvent) => {
+      const features = map.queryRenderedFeatures(e.point, { layers: ['clusters'] })
+      if (!features.length) return
+      const clusterId = features[0].properties?.cluster_id
+      const source = map.getSource(SOURCE_ID) as any
+      source?.getClusterExpansionZoom(clusterId, (err: any, zoom: number) => {
+        if (err) return
+        map.easeTo({
+          center: (features[0].geometry as GeoJSON.Point).coordinates as [number, number],
+          zoom,
+        })
+      })
+    })
+
+    // Click individual station for popup
     map.on('click', LAYER_ID, (e: mapboxgl.MapLayerMouseEvent) => {
       if (!e.features || e.features.length === 0) return
       const feature = e.features[0]
@@ -164,6 +215,12 @@ export default function MapView() {
       popupRef.current = popup
     })
 
+    map.on('mouseenter', 'clusters', () => {
+      map.getCanvas().style.cursor = 'pointer'
+    })
+    map.on('mouseleave', 'clusters', () => {
+      map.getCanvas().style.cursor = ''
+    })
     map.on('mouseenter', LAYER_ID, () => {
       map.getCanvas().style.cursor = 'pointer'
     })
@@ -198,11 +255,36 @@ export default function MapView() {
       map.addSource(SOURCE_ID, {
         type: 'geojson',
         data: buildGeoJSON(stations),
+        cluster: true,
+        clusterMaxZoom: 14,
+        clusterRadius: 50,
+      })
+      map.addLayer({
+        id: 'clusters',
+        type: 'circle',
+        source: SOURCE_ID,
+        filter: ['has', 'point_count'],
+        paint: {
+          'circle-color': '#24824A',
+          'circle-radius': ['step', ['get', 'point_count'], 18, 5, 24, 15, 30, 30, 36],
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': 2,
+          'circle-opacity': 0.85,
+        },
+      })
+      map.addLayer({
+        id: 'cluster-count',
+        type: 'symbol',
+        source: SOURCE_ID,
+        filter: ['has', 'point_count'],
+        layout: { 'text-field': ['get', 'point_count_abbreviated'], 'text-size': 13 },
+        paint: { 'text-color': '#ffffff' },
       })
       map.addLayer({
         id: LAYER_ID,
         type: 'circle',
         source: SOURCE_ID,
+        filter: ['!', ['has', 'point_count']],
         paint: {
           'circle-radius': 7,
           'circle-color': ['get', 'color'],
