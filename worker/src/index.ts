@@ -41,41 +41,6 @@ app.post('/api/sync/stations', async (c) => {
   await syncStationStatuses(c.env);
   return c.json({ triggered: 'station_status' });
 });
-// Debug: raw SOAP test
-app.get('/api/debug/soap-test', async (c) => {
-  const { ChargePointClient } = await import('./sync/chargepoint');
-  const client = new ChargePointClient(c.env);
-  try {
-    const result = await client.getStationStatus();
-    return c.json({ count: result.length, sample: result.slice(0, 3) });
-  } catch (err: any) {
-    return c.json({ error: err.message }, 500);
-  }
-});
-app.get('/api/debug/stations-map', async (c) => {
-  const { ChargePointClient } = await import('./sync/chargepoint');
-  const client = new ChargePointClient(c.env);
-  try {
-    const xml = await client.debugRawResponse('getStations', `<tns:getStations>
-      <tns:searchQuery></tns:searchQuery>
-    </tns:getStations>`);
-    return c.text(xml.substring(0, 8000));
-  } catch (err: any) {
-    return c.json({ error: err.message }, 500);
-  }
-});
-app.get('/api/debug/soap-raw', async (c) => {
-  const { ChargePointClient } = await import('./sync/chargepoint');
-  const client = new ChargePointClient(c.env);
-  try {
-    const xml = await client.debugRawResponse('getStationStatus', `<tns:getStationStatus>
-      <tns:searchQuery><tns:orgID></tns:orgID></tns:searchQuery>
-    </tns:getStationStatus>`);
-    return c.text(xml.substring(0, 5000));
-  } catch (err: any) {
-    return c.json({ error: err.message }, 500);
-  }
-});
 app.post('/api/sync/sessions', async (c) => {
   await syncChargingSessions(c.env);
   return c.json({ triggered: 'charging_sessions' });
